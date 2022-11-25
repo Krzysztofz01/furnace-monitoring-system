@@ -57,13 +57,23 @@ void LcdDisplay::writeLine(int lineIndex, String textValue) {
         throw std::runtime_error("LcdDisplay: Invalid line index specified to display text.");
     }
 
-    String padding(mDisplayWidth - textValue.length(), ' ');
+    char* outputBuffer = new char[mDisplayWidth + 1];
+    for (int buffIndex = 0; buffIndex < mDisplayWidth; ++buffIndex) {
+      outputBuffer[buffIndex] = (buffIndex < textValue.length()) ? textValue[buffIndex] : ' ';
+    }
 
-    char* lineBuffer = new char(mDisplayWidth);
-    snprintf(lineBuffer, mDisplayWidth, "%s%s", textValue, padding);
+    outputBuffer[mDisplayWidth] = '\0';
 
     mpLcdDisplayDevice->setCursor(0, lineIndex);
-    mpLcdDisplayDevice->print(lineBuffer);
+    mpLcdDisplayDevice->print(outputBuffer);
 
-    delete[] lineBuffer;
+    delete[] outputBuffer;
+}
+
+void LcdDisplay::writeLine(int lineIndex, char* textValue) {
+    if (textValue == nullptr) {
+        throw std::runtime_error("LcdDisplay: Text value pointer is null");
+    }
+
+    return writeLine(lineIndex, String(textValue));
 }
