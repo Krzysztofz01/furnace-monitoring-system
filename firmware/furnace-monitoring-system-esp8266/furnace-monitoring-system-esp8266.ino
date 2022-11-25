@@ -1,9 +1,12 @@
 #include <OneWire.h>
 #include <LiquidCrystal.h>
 
+#include "lcd-display.hh"
+
 OneWire temperature_sensor_one(D3);
 OneWire temperature_sensor_two(D4);
-LiquidCrystal lcd_screen(D1, D2, D5, D6, D7, D8);
+
+LcdDisplay* p_lcdDisplay = nullptr;
 
 const int LCD_WIDTH = 16;
 const int LCD_HEIGHT = 2;
@@ -145,29 +148,44 @@ TemperatureResult get_sensor_temperature(OneWire* onewire_device) {
 
 void setup(void) {
   Serial.begin(9600);
-  lcd_screen.begin(LCD_WIDTH, LCD_HEIGHT);
+  
+  try {
+    p_lcdDisplay = new LcdDisplay(
+      LCD_WIDTH,
+      LCD_HEIGHT,
+      D1,
+      D2,
+      D5, D6, D7, D8);
+
+  } catch (std::exception& ex) {
+    // TODO: Better logging
+    Serial.println(ex.what());
+  }
 }
- 
+
 void loop(void) {
-  lcd_screen.setCursor(0, 0);
-  auto result_ts_one = get_sensor_temperature(&temperature_sensor_one);
-  if (result_ts_one.is_success()) {
-    char print_buffer[LCD_WIDTH];
-    snprintf(print_buffer, LCD_WIDTH, "Temp one: %.4f", result_ts_one.get_temperature());
+  try {
+    auto result_ts_one = get_sensor_temperature(&temperature_sensor_one);
+    if (result_ts_one.is_success()) {
+      char print_buffer[LCD_WIDTH];
+      snprintf(print_buffer, LCD_WIDTH, "Temp one: %.4f", result_ts_one.get_temperature());
 
-    Serial.println(print_buffer);
-    lcd_screen.print(print_buffer);
+      Serial.println(print_buffer);
+      p_lcdDisplay->writeLine(0, print_buffer);
+    }
+
+    auto result_ts_two = get_sensor_temperature(&temperature_sensor_two);
+    if (result_ts_two.is_success()) {
+      char print_buffer[LCD_WIDTH];
+      snprintf(print_buffer, LCD_WIDTH, "Temp two: %.4f", result_ts_two.get_temperature());
+
+      Serial.println(print_buffer);
+      p_lcdDisplay->writeLine(1, print_buffer);
+    }
+
+    Serial.print("\n");
+  } catch (std::exception& ex) {
+    // TODO: Better logging
+    Serial.println(ex.what());
   }
-
-  lcd_screen.setCursor(0, 1);
-  auto result_ts_two = get_sensor_temperature(&temperature_sensor_two);
-  if (result_ts_two.is_success()) {
-    char print_buffer[LCD_WIDTH];
-    snprintf(print_buffer, LCD_WIDTH, "Temp two: %.4f", result_ts_two.get_temperature());
-
-    Serial.println(print_buffer);
-    lcd_screen.print(print_buffer);
-  }
-
-  Serial.print("\n");
 }
