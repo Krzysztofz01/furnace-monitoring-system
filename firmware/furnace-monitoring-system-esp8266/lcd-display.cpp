@@ -7,13 +7,13 @@ LcdDisplay::LcdDisplay(const int displayWidth, const int displayHeight, const in
         throw std::runtime_error("LcdDisplay: Invalid display width specified.");
     }
 
-    this.mDisplayWidth = displayWidth;
+    mDisplayWidth = displayWidth;
 
     if (displayHeight <= 0) {
         throw std::runtime_error("LcdDisplay: Invalid display height specified.");
     }
 
-    this.mDisplayHeight = displayHeight;
+    mDisplayHeight = displayHeight;
 
     if (pinRegisterSelect <= 0) {
         throw std::runtime_error("LcdDisplay: Invalid register selection pin specified.");
@@ -39,31 +39,31 @@ LcdDisplay::LcdDisplay(const int displayWidth, const int displayHeight, const in
         throw std::runtime_error("LcdDisplay: Invalid data bus 4 pin specified.");
     }
 
-    this.mpLcdDisplayDevice = new LiquidCrystal(pinRegisterSelect, pinEnable, pinDataBus1, pinDataBus2, pinDataBus3, pinDataBus4);
-    this.mpLcdDisplayDevice->begin(this.mDisplayWidth, this.mDisplayHeight);
-    this.mpLcdDisplayDevice->clear();
+    mpLcdDisplayDevice = new LiquidCrystal(pinRegisterSelect, pinEnable, pinDataBus1, pinDataBus2, pinDataBus3, pinDataBus4);
+    mpLcdDisplayDevice->begin(mDisplayWidth, mDisplayHeight);
+    mpLcdDisplayDevice->clear();
 }
 
 LcdDisplay::~LcdDisplay() {
-    delete this.mpLcdDisplayDevice;
+    delete mpLcdDisplayDevice;
 }
 
 void LcdDisplay::clear() {
-    this.mpLcdDisplayDevice->clear();
+    mpLcdDisplayDevice->clear();
 }
 
 void LcdDisplay::writeLine(int lineIndex, String textValue) {
-    if (lineIndex < 0 || lineIndex >= this.mDisplayHeight) {
+    if (lineIndex < 0 || lineIndex >= mDisplayHeight) {
         throw std::runtime_error("LcdDisplay: Invalid line index specified to display text.");
     }
 
-    String padding(this.mDisplayWidth - textValue.length(), ' ');
+    String padding(mDisplayWidth - textValue.length(), ' ');
 
-    char* lineBuffer = new char(this.mDisplayWidth);
-    snprintf(lineBuffer, this.mDisplayWidth, "%s%s", textValue, padding);
+    char* lineBuffer = new char(mDisplayWidth);
+    snprintf(lineBuffer, mDisplayWidth, "%s%s", textValue, padding);
 
-    this.mpLcdDisplayDevice->setCursor(0, lineIndex);
-    this.mpLcdDisplayDevice->print(lineBuffer);
+    mpLcdDisplayDevice->setCursor(0, lineIndex);
+    mpLcdDisplayDevice->print(lineBuffer);
 
     delete[] lineBuffer;
 }

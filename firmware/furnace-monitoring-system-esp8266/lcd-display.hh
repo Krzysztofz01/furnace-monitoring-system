@@ -17,6 +17,6 @@ private:
     LiquidCrystal* mpLcdDisplayDevice;
     int mDisplayWidth;
     int mDisplayHeight;
-}
+};
 
 #endif
