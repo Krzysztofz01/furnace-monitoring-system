@@ -20,11 +20,12 @@ private:
     String mFailureMessage;
     bool mIsSuccess;
     float mTemperature;
-}
+};
 
 class TemperatureSensor {
 public:
     TemperatureSensorResult readTemperature();
+    int getIdentifier() const;
 
     TemperatureSensor(const int sensorIndetifier, const int pinSensorCommunication);
     ~TemperatureSensor();
@@ -32,6 +33,6 @@ private:
     OneWire* mpOneWireSensorDevice;
     int mPinSensorCommunication;
     int mSensorIndetifier;
-}
+};
 
 #endif // TEMPERATURE_SENSOR_HH

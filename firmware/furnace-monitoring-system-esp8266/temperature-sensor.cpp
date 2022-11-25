@@ -10,7 +10,7 @@ TemperatureSensorResult TemperatureSensorResult::success(float temperature) {
     result.mIsSuccess = true;
     result.mTemperature = temperature;
 
-    return result
+    return result;
 }
 
 TemperatureSensorResult TemperatureSensorResult::failure(String failureMessage) {
@@ -19,35 +19,36 @@ TemperatureSensorResult TemperatureSensorResult::failure(String failureMessage) 
     result.mIsSuccess = false;
     result.mTemperature = 0.0f;
 
-    return result
+    return result;
 }
 
-bool TemperatureSensorResult::isSuccess() {
-    return this.mIsSuccess;
+bool TemperatureSensorResult::isSuccess() const {
+    return mIsSuccess;
 }
 
-float TemperatureSensorResult::getTemperature() {
-    return this.mTemperature;
+float TemperatureSensorResult::getTemperature() const {
+    return mTemperature;
 }
 
-String TemperatureSensorResult::getFailureMessage() {
-    return this.mFailureMessage;
+String TemperatureSensorResult::getFailureMessage() const {
+    return mFailureMessage;
 }
 
 TemperatureSensor::TemperatureSensor(const int sensorIndetifier, const int pinSensorCommunication) {
     // TODO: Checking for id duplicates
-    this.mSensorIndetifier = sensorIndetifier;
+    mSensorIndetifier = sensorIndetifier;
     
     if (pinSensorCommunication <= 0) {
-        throw std::runtime_error("TemperatureSensor: Invalid sensor pin sepcified.");
+        // FIXME: How to validate pin numbers?
+        //throw std::runtime_error("TemperatureSensor: Invalid sensor pin sepcified.");
     }
 
-    this.mPinSensorCommunication = pinSensorCommunication;
-    this.mpOneWireSensorDevice = new OneWire(this.mPinSensorCommunication);
+    mPinSensorCommunication = pinSensorCommunication;
+    mpOneWireSensorDevice = new OneWire(mPinSensorCommunication);
 }
 
 TemperatureSensor::~TemperatureSensor() {
-    delete this.mpOneWireSensorDevice;
+    delete mpOneWireSensorDevice;
 }
 
 TemperatureSensorResult TemperatureSensor::readTemperature() {
@@ -55,15 +56,15 @@ TemperatureSensorResult TemperatureSensor::readTemperature() {
     const int address_buffer_size = 8;
     byte address_buffer[address_buffer_size];
   
-    if (!this.mpOneWireSensorDevice->search(address_buffer)) {
-        this.mpOneWireSensorDevice->reset_search();
+    if (!mpOneWireSensorDevice->search(address_buffer)) {
+        mpOneWireSensorDevice->reset_search();
         delay(250);
-        return TemperatureResult::failure("No addresses found to read sensor data.");
+        return TemperatureSensorResult::failure("No addresses found to read sensor data.");
     }
 
     if (OneWire::crc8(address_buffer, 7) != address_buffer[7]) {
-        this.mpOneWireSensorDevice->reset_search();
-        return TemperatureResult::failure("Verification of address CRC checksum failed.");
+        mpOneWireSensorDevice->reset_search();
+        return TemperatureSensorResult::failure("Verification of address CRC checksum failed.");
     }
 
     // NOTE: Identification of the sensor circuit based on the first communication byte
@@ -86,31 +87,31 @@ TemperatureSensorResult TemperatureSensor::readTemperature() {
 
         // NOTE: Undefined sensor circuit
         default:
-            return TemperatureResult::failure("The sensor circuit is not supported");
+            return TemperatureSensorResult::failure("The sensor circuit is not supported");
     }
 
-    this.mpOneWireSensorDevice->reset();
-    this.mpOneWireSensorDevice->select(address_buffer);
-    this.mpOneWireSensorDevice->write(0x44, 1);
+    mpOneWireSensorDevice->reset();
+    mpOneWireSensorDevice->select(address_buffer);
+    mpOneWireSensorDevice->write(0x44, 1);
 
     // TODO: This value can be fine-tuned down to 750ms?
     delay(1000);
 
     byte present = 0;
-    present = this.mpOneWireSensorDevice->reset();
-    this.mpOneWireSensorDevice->select(address_buffer);
-    this.mpOneWireSensorDevice->write(0xBE);
+    present = mpOneWireSensorDevice->reset();
+    mpOneWireSensorDevice->select(address_buffer);
+    mpOneWireSensorDevice->write(0xBE);
 
     // TODO: Extract this !
     const int value_buffer_size = 12;
     byte value_buffer[value_buffer_size];
 
     for (int i = 0; i < value_buffer_size - 3; ++i) {
-        value_buffer[i] = this.mpOneWireSensorDevice->read();
+        value_buffer[i] = mpOneWireSensorDevice->read();
     }
 
-    this.mpOneWireSensorDevice->read();
-    this.mpOneWireSensorDevice->reset_search();
+    mpOneWireSensorDevice->read();
+    mpOneWireSensorDevice->reset_search();
 
     // NOTE: Parsing the actual temperature for the data buffer. The result data size
     //       is always a 16 bit signed integer, and the type MUST be explicit in order
@@ -141,5 +142,9 @@ TemperatureSensorResult TemperatureSensor::readTemperature() {
     }
 
     float celsius_temperature = (float)raw_data / 16.0;
-    return TemperatureResult::success(celsius_temperature);
+    return TemperatureSensorResult::success(celsius_temperature);
+}
+
+int TemperatureSensor::getIdentifier() const {
+    return mSensorIndetifier;
 }
