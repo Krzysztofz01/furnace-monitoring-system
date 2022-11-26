@@ -1,0 +1,27 @@
+{
+  "name": "furnace-monitoring-system-server",
+  "version": "0.0.0",
+  "main": "index.ts",
+  "repository": "https://github.com/Krzysztofz01/furnace-monitoring-system",
+  "author": "Krzysztofz01",
+  "license": "MIT",
+  "scripts": {
+    "serve": "ts-node src/index",
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.14",
+    "@types/node": "^18.11.9",
+    "@typescript-eslint/eslint-plugin": "^5.44.0",
+    "@typescript-eslint/parser": "^5.44.0",
+    "eslint": "^8.28.0",
+    "nodemon": "^2.0.20",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.3"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "socket.io": "^4.5.4"
+  }
+}

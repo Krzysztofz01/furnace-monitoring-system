@@ -1,0 +1,48 @@
+{
+    "compilerOptions": {
+        "target": "ES6",
+        "module": "commonjs",
+        "esModuleInterop": true,
+        "moduleResolution": "node",
+        "allowJs": true,
+        "allowSyntheticDefaultImports": true,
+        "importHelpers": true,
+        "alwaysStrict": true,
+        "sourceMap": true,
+        "forceConsistentCasingInFileNames": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitReturns": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitAny": false,
+        "noImplicitThis": false,
+        "strictNullChecks": false,
+        "outDir": "./dist",
+        "baseUrl": ".",
+        "paths": {
+            "@server/*": [
+                "src/*"
+            ],
+            "@config/*": [
+                "src/config/*"
+            ],
+            "@domain/*": [
+                "src/domain/*"
+            ],
+            "@controller/*": [
+                "src/controller/*"
+            ],
+            "@repository/*": [
+                "src/repository/*"
+            ],
+            "@service/*": [
+                "src/service/*"
+            ],
+            "@middleware/*": [
+                "src/middleware/*"
+            ]
+        }
+    },
+    "include": [ "src/**/*" ],
+    "exclude": [ "node_modules", "dist" ]
+}
