@@ -1,6 +1,6 @@
 import { Server as HttpServer } from "http";
 import express, { Express, NextFunction, Request, Response } from 'express';
-import { Server as SocketServer } from "socket.io";
+import { Server as SocketServer, Socket } from "socket.io";
 import path from "path";
 import { Logger } from "winston";
 import { SensorDeviceService } from "@services/sensor-device.service";
@@ -36,7 +36,6 @@ export class Server {
         this.configureExpressEndpoints();
 
         this.configureSocket();
-        this.configureSocketEndpoints();
     }
 
     private configureExpress(): void {
@@ -57,8 +56,29 @@ export class Server {
         });
     }
 
+    private configureExpressEndpoints(): void {
+    }
 
     private configureSocket(): void {
+        this._socket.on('connection', (socket: Socket) => {
+            this._logger.info(`Server: SensorDevice with address: ${socket.conn.remoteAddress} connected.`);
+
+            socket.on('measurement', (measurement) => {
+                if (measurement === undefined) {
+                    this._logger.info("Server: SensorDevice measurement is undefined.");
+                    return;
+                }
+
+                const result = this._sensorDeviceService.pushMeasurement(measurement);
+                if (!result.isSuccess) {
+                    this._logger.warn("Server: SensorDevice measurement push failed.");
+                }
+            });
+
+            socket.on('disconnect', () => {
+                this._logger.info(`Server: SensorDevice with address: ${socket.conn.remoteAddress} disconnected.`);
+            });
+        });
     }
 
     public listen(port: number | undefined = undefined): void {
