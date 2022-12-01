@@ -19,7 +19,9 @@ export class UnitOfWork {
         }
 
         this._database = new Database(databaseName, OPEN_READWRITE | OPEN_CREATE | OPEN_FULLMUTEX, (error: Error) => {
-            this._logger.error(`UnitOfWork: Failed to open the database. ${error}`);
+            if (error != null) {
+                throw new Error(`UnitOfWork: Failed to open the database. ${error}`);
+            }
         });
 
         this._logger.info("UnitOfWork: Database access gained successful.");

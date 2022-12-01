@@ -11,10 +11,14 @@ export class SensorDeviceMeasurementRepository {
             throw new Error("SensorDeviceMeasurementRepository: Provided logger instance is undefined.");
         }
         
+        this._logger = loggerInstance;
+
         if (databaseInstance === undefined) {
             throw new Error("SensorDeviceMeasurementRepository: Provided database reference is undefined.");
         }
         
+        this._database = databaseInstance;
+
         if (runMigration) this.performMigration();
     }
 
@@ -31,7 +35,7 @@ export class SensorDeviceMeasurementRepository {
         this._logger.info("SensorDeviceMeasurementRepository: Starting the migration process.");
 
         this._database.exec(migrationQuery, (error: Error) => {
-            if (error !== undefined) {
+            if (error != null) {
                 throw new Error(`SensorDeviceMeasurementRepository: Migration failed. ${error}`);
             }
         });
@@ -54,7 +58,7 @@ export class SensorDeviceMeasurementRepository {
         const resultData = new Array<SensorDeviceMeasurement>();
 
         this._database.each(queryString, (error: Error, row: any) => {
-            if (error !== undefined) {
+            if (error != null) {
                 this._logger.error("SensorDeviceMeasurementRepository: Can not retrieve row for 'getMeasurementsOrderedByTimestamp' query.");
             }
 
@@ -67,7 +71,7 @@ export class SensorDeviceMeasurementRepository {
                 timestamp: row.timestamp
             });
         }, (error: Error, count: number) => {
-            if (error !== undefined) {
+            if (error != null) {
                 this._logger.error("SensorDeviceMeasurementRepository: 'getMeasurementsOrderedByTimestamp' query failed.");
                 resultData.splice(0, resultData.length);
             }
@@ -91,7 +95,7 @@ export class SensorDeviceMeasurementRepository {
             measurement.airContaminationPercentage,
             measurement.timestamp
         ], (_: RunResult, error: Error) => {
-            if (error !== undefined) {
+            if (error != null) {
                 this._logger.error("SensorDeviceMeasurementRepository: 'insertMeasurement' insert query failed.");
             }
         });
