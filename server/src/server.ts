@@ -1,20 +1,54 @@
-import * as http from "http";
+import { Server as HttpServer } from "http";
 import express, { Express, NextFunction, Request, Response } from 'express';
+import { Server as SocketServer } from "socket.io";
+import path from "path";
+import { Logger } from "winston";
+import { SensorDeviceService } from "@services/sensor-device.service";
+
+const DEFAULT_APP_PORT = 80;
 
 export class Server {
-    private readonly _app: Express;
-    private _server!: http.Server;
+    private readonly _application: Express;
+    private readonly _server: HttpServer;
+    private readonly _socket: SocketServer;
 
-    constructor() {
-        this._app = express();
-        this._app.set("port", process.env.PORT || 5000);
+    private readonly _logger: Logger;
+    private readonly _sensorDeviceService: SensorDeviceService;
 
-        this.configureMiddleware();
+    constructor(sensorDeviceServiceInstance: SensorDeviceService, loggerInstance: Logger) {
+        if (loggerInstance === undefined) {
+            throw new Error("Server: Provided logger instance is undefined.");
+        }
+        
+        this._logger = loggerInstance;
+
+        if (sensorDeviceServiceInstance === undefined) {
+            throw new Error("Server: Provided sensordeviceservice instance is undefined.");
+        }
+
+        this._sensorDeviceService = sensorDeviceServiceInstance;
+
+        this._application = express();
+        this._server = new HttpServer(this._application);
+        this._socket = new SocketServer(this._server);
+
+        this.configureExpress();
+        this.configureExpressEndpoints();
+
+        this.configureSocket();
+        this.configureSocketEndpoints();
     }
 
-    private configureMiddleware(): void {
-        // Cross-Origin-Resource-Sharing middleware config
-        this._app.use((_: Request, response: Response, next: NextFunction) => {
+    private configureExpress(): void {
+        // NOTE: Define EJS as the view engine for server-side view rendering
+        this._application.set("views", path.join(__dirname, 'views'));
+        this._application.set("view engine", "ejs");
+
+        // NOTE: Define static files location
+        this._application.use('/static', express.static(path.join(__dirname, 'static')));
+
+        // NOTE: CORS configuration
+        this._application.use((_: Request, response: Response, next: NextFunction) => {
             response.setHeader("Access-Control-Allow-Origin", "*");
             response.setHeader("Access-Control-Allow-Credentials", "true");
             response.setHeader("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS,POST,PUT");
@@ -23,15 +57,23 @@ export class Server {
         });
     }
 
-    public start(): void {
-        this._server = this._app.listen(this._app.get("port"));
+
+    private configureSocket(): void {
     }
 
-    public get app(): Express {
-        return this._app;
+    public listen(port: number | undefined = undefined): void {
+        if (port === undefined) port = DEFAULT_APP_PORT;
+
+        this._server.listen(port, () => {
+            this._logger.info("Server: Server started to listening for requets.");
+        });
     }
 
-    public get server(): http.Server {
-        return this._server;
+    public dispose(): void {
+        this._logger.info("Server: Disposing the HTTP/Socket server.");
+
+        this._server.close((error: Error) => {
+            this._logger.error(`Server: Some problem occured while disposing. ${error}`);
+        });
     }
 }
