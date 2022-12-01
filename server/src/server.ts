@@ -4,6 +4,7 @@ import { Server as SocketServer, Socket } from "socket.io";
 import path from "path";
 import { Logger } from "winston";
 import { SensorDeviceService } from "@services/sensor-device.service";
+import { ViewController } from "@controllers/view.controlller";
 
 const DEFAULT_APP_PORT = 80;
 
@@ -14,6 +15,8 @@ export class Server {
 
     private readonly _logger: Logger;
     private readonly _sensorDeviceService: SensorDeviceService;
+
+    private readonly _viewController: ViewController;
 
     constructor(sensorDeviceServiceInstance: SensorDeviceService, loggerInstance: Logger) {
         if (loggerInstance === undefined) {
@@ -31,6 +34,8 @@ export class Server {
         this._application = express();
         this._server = new HttpServer(this._application);
         this._socket = new SocketServer(this._server);
+
+        this._viewController = new ViewController(this._sensorDeviceService, this._logger);
 
         this.configureExpress();
         this.configureExpressEndpoints();
@@ -57,6 +62,12 @@ export class Server {
     }
 
     private configureExpressEndpoints(): void {
+        this._application.get('/', this._viewController.handleIndex);
+
+        this._application.get('*', (_: Request, response: Response) => {
+            response.statusCode = 301;
+            response.redirect('/');
+        });
     }
 
     private configureSocket(): void {
