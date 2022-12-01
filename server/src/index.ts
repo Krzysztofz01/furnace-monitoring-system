@@ -58,13 +58,17 @@ try {
 function disposeHandlers(): void {
     if (_server !== undefined) {
         _server.dispose();
+        _server = undefined;
     }
 
     if (_unitOfWork !== undefined) {
         _unitOfWork.dispose();
+        _unitOfWork = undefined;
     }
 
     if (_logger !== undefined) {
+        // TODO: Wait here for flushing of the log file
         _logger.end();
+        _logger = undefined;
     }
 }
