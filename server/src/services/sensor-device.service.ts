@@ -1,10 +1,11 @@
-import { Result } from "@models/result";
+import { Result, ValueResult } from "@models/result";
 import { SensorDeviceMeasurement } from "@models/sensor-device-measurement.model";
 import { UnitOfWork } from "src/unit-of-work";
 import { Logger } from "winston";
 
 const UNSPECIFIED_ID = -1;
 
+// TODO: Implement method that returns current date measurements.
 export class SensorDeviceService {
     private readonly _unitOfWork: UnitOfWork;
     private readonly _logger: Logger;
@@ -26,12 +27,40 @@ export class SensorDeviceService {
     public pushMeasurement(encodedMeasurement: string): Result {
         try {
             const measurement = this.decodeMeasurement(encodedMeasurement, new Date(Date.now()));
+            if (measurement === undefined) return { isSuccess: false };
 
             this._unitOfWork.sensorDeviceMeasurementRepository.insertMeasurement(measurement);
 
             return { isSuccess: true };
         } catch (error) {
+            this._logger.warn(`SensorDeviceService: Failure on 'pushMeasurement'. ${error}`);
             return { isSuccess: false };
+        }
+    }
+
+    public popMeasurement(): ValueResult<SensorDeviceMeasurement> {
+        try {
+            // TODO: Implement query specific for that scenario.
+            const measurements = this._unitOfWork.sensorDeviceMeasurementRepository.getMeasurementsOrderedByTimestamp();
+            if (measurements.length === 0) return { isSuccess: false, value: undefined };
+
+            return { isSuccess: true, value: measurements[0] };
+        } catch (error) {
+            this._logger.warn(`SensorDeviceService: Failure on 'pushMeasurement'. ${error}`);
+            return { isSuccess: false, value: undefined };
+        }
+    }
+
+    public popHundredLatestMeasurements(): ValueResult<Array<SensorDeviceMeasurement>> {
+        try {
+            // TODO: Implement query specific for that scenario.
+            const measurements = this._unitOfWork.sensorDeviceMeasurementRepository.getMeasurementsOrderedByTimestamp();
+            if (measurements.length < 100) return { isSuccess: false, value: undefined };
+
+            return { isSuccess: true, value: measurements.slice(0, 100) };
+        } catch (error) {
+            this._logger.warn(`SensorDeviceService: Failure on 'pushMeasurement'. ${error}`);
+            return { isSuccess: false, value: undefined };
         }
     }
 
