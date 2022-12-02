@@ -21,6 +21,29 @@ export class ViewController {
     }
 
     public handleIndex(_: Request, response: Response): void {
-        response.render("index");
+        const serviceResult = this._sensorDeviceService.popMeasurement();
+        if (!serviceResult.isSuccess) {
+            this._logger.warn("ViewController: Failed to obtain service data required to render index view.");
+            // TODO: Error view needs to be implemented here
+            return; 
+        }
+
+        const latestMeasurement = serviceResult.value;
+   
+        // FIXME: Wrong timestamp, corrupted test data?
+        const timestamp = new Date(latestMeasurement.timestamp);
+        const formatedTimestamp = `${timestamp.getHours()}:${timestamp.getMinutes()}:${timestamp.getSeconds()}`;
+        const formatedTemperatureOne = (latestMeasurement.temperatureSensorOne === undefined) ? "Sensor unavailable" : `${latestMeasurement.temperatureSensorOne}°C`;
+        const formatedTemperatureTwo = (latestMeasurement.temperatureSensorTwo === undefined) ? "Sensor unavailable" : `${latestMeasurement.temperatureSensorTwo}°C`;
+        const formatedTemperatureThree = (latestMeasurement.temperatureSensorThree === undefined) ? "Sensor unavailable" : `${latestMeasurement.temperatureSensorThree}°C`;
+        const formatedAir = (latestMeasurement.airContaminationPercentage === undefined) ? "Sensor unavailable" : `${latestMeasurement.airContaminationPercentage}%`;
+
+        response.render("index", {
+            time: formatedTimestamp,
+            temp1: formatedTemperatureOne,
+            temp2: formatedTemperatureTwo,
+            temp3: formatedTemperatureThree,
+            air: formatedAir
+        });
     }
 }
