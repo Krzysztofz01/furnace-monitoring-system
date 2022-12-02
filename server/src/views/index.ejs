@@ -1,8 +1,36 @@
-<html>
-    <head>
+<!DOCTYPE html>
+<html lang="en">
 
-    </head>
-    <body>
-        <h1>Hello World!</h1>
-    </body>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="static/tailwind.css">
+
+    <title>Furnace Monitoring System</title>
+</head>
+
+<body class="bg-slate-800">
+    <div class="flex flex-col flex-wrap items-center justify-center mx-auto relative min-h-screen animate-popIn-600 delay-500">
+        <div class="border-solid border-2 border-orange-400 rounded-lg text-center p-10">
+            <h1 class="text-3xl text-orange-400 m-3">Sensor readings from the boiler room (20:00:00)</h1>
+            
+            <h4 class="text-xl text-orange-200 m-3">First temperature sensor: <span class="font-bold text-orange-400">20&#176;C</span></h4>
+            <h4 class="text-xl text-orange-200 m-3">Second temperature sensor: <span class="font-bold text-orange-400">20&#176;C</span></h4>
+            <h4 class="text-xl text-orange-200 m-3">Third temperature sensor: <span class="font-bold text-orange-400">20&#176;C</span></h4>
+            <h4 class="text-xl text-orange-200 m-3">Air contamination: <span class="font-bold text-orange-400">20%</span></h4>
+
+            <button class="py-2 px-6 border-solid border-2 border-orange-400 rounded-lg bg-slate-800 hover:bg-orange-400 text-orange-400 hover:text-slate-800 text-center text-xl mt-4 scale-100 md:hover:scale-90 transition duration-200 ease-in-out" id="refreshButton">Refresh</button>
+        </div>
+    </div>
+</body>
+
+<script>
+    const refreshButtonId = "refreshButton";
+    document.getElementById(refreshButtonId).addEventListener("click", () => {
+        document.location.reload();
+    });
+</script>
+
 </html>
