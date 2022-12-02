@@ -129,6 +129,9 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+# Tailwind CSS
+tailwind.css
+
 # Furnace-Monitoring System database
 fms.db
 fms.dev.db
