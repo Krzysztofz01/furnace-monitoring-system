@@ -1,17 +1,17 @@
 import { Server as HttpServer } from "http";
 import express, { Express, NextFunction, Request, Response } from 'express';
-import { Server as SocketServer, Socket } from "socket.io";
 import path from "path";
 import { Logger } from "winston";
 import { SensorDeviceService } from "@services/sensor-device.service";
 import { ViewController } from "@controllers/view.controlller";
+import { WebSocket, WebSocketServer } from "ws";
 
 const DEFAULT_APP_PORT = 80;
 
 export class Server {
     private readonly _application: Express;
     private readonly _server: HttpServer;
-    private readonly _socket: SocketServer;
+    private readonly _socket: WebSocketServer;
 
     private readonly _logger: Logger;
     private readonly _sensorDeviceService: SensorDeviceService;
@@ -33,7 +33,7 @@ export class Server {
 
         this._application = express();
         this._server = new HttpServer(this._application);
-        this._socket = new SocketServer(this._server);
+        this._socket = new WebSocketServer({ server: this._server });
 
         this._viewController = new ViewController(this._sensorDeviceService, this._logger);
 
@@ -62,7 +62,9 @@ export class Server {
     }
 
     private configureExpressEndpoints(): void {
-        this._application.get('/', this._viewController.handleIndex);
+        this._application.get('/', (request: Request, response: Response) => {
+            this._viewController.handleIndex(request, response);
+        });
 
         this._application.get('*', (_: Request, response: Response) => {
             response.statusCode = 301;
@@ -71,23 +73,27 @@ export class Server {
     }
 
     private configureSocket(): void {
-        this._socket.on('connection', (socket: Socket) => {
-            this._logger.info(`Server: SensorDevice with address: ${socket.conn.remoteAddress} connected.`);
+        this._socket.on('connection', (socket: WebSocket) => {
+            
+            // TODO: This is a dirty work-around
+            const ipAddress = (socket as any)._socket.remoteAddress;
 
-            socket.on('measurement', (measurement) => {
-                if (measurement === undefined) {
+            this._logger.info(`Server: SensorDevice with address: ${ ipAddress } connected.`);
+
+            socket.on('measurement', (measurementData: any) => {
+                if (measurementData === undefined) {
                     this._logger.info("Server: SensorDevice measurement is undefined.");
                     return;
                 }
 
-                const result = this._sensorDeviceService.pushMeasurement(measurement);
+                const result = this._sensorDeviceService.pushMeasurement(measurementData);
                 if (!result.isSuccess) {
                     this._logger.warn("Server: SensorDevice measurement push failed.");
                 }
             });
 
-            socket.on('disconnect', () => {
-                this._logger.info(`Server: SensorDevice with address: ${socket.conn.remoteAddress} disconnected.`);
+            socket.on('close', () => {
+                this._logger.info(`Server: SensorDevice with address: ${ ipAddress } disconnected.`);
             });
         });
     }
