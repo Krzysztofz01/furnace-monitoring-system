@@ -29,7 +29,7 @@
             "@services/*": [
                 "src/services/*"
             ],
-            "@middleware/*": [
+            "@middlewares/*": [
                 "src/middleware/*"
             ],
             "@views/*": [

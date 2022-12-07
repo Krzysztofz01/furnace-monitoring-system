@@ -12,8 +12,10 @@
     "build:views": "npx tailwindcss -i ./src/static/style.css -o ./src/static/tailwind.css --minify"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.2",
     "@types/express": "^4.17.14",
     "@types/node": "^18.11.9",
+    "@types/ws": "^8.5.3",
     "@typescript-eslint/eslint-plugin": "^5.44.0",
     "@typescript-eslint/parser": "^5.44.0",
     "eslint": "^8.28.0",
@@ -24,11 +26,11 @@
     "typescript": "^4.9.3"
   },
   "dependencies": {
+    "better-sqlite3": "^8.0.1",
     "dotenv": "^16.0.3",
     "ejs": "^3.1.8",
     "express": "^4.18.2",
-    "socket.io": "^4.5.4",
-    "sqlite3": "^5.1.2",
-    "winston": "^3.8.2"
+    "winston": "^3.8.2",
+    "ws": "^8.11.0"
   }
 }

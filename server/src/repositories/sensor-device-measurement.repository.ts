@@ -1,20 +1,20 @@
 import { SensorDeviceMeasurement } from "@models/sensor-device-measurement.model";
-import { Database, RunResult } from "sqlite3";
+import sqlite3 from 'better-sqlite3';
 import { Logger } from "winston";
 
 export class SensorDeviceMeasurementRepository {
-    private readonly _database: Database;
+    private readonly _database: sqlite3.Database;
     private readonly _logger: Logger;
 
-    constructor(databaseInstance: Database, loggerInstance: Logger, runMigration: boolean = true) {
+    constructor(databaseInstance: sqlite3.Database, loggerInstance: Logger, runMigration: boolean = true) {
         if (loggerInstance === undefined) {
-            throw new Error("SensorDeviceMeasurementRepository: Provided logger instance is undefined.");
+            throw new Error("[SensorDeviceMeasurementRepository]: Provided logger instance is undefined.");
         }
         
         this._logger = loggerInstance;
 
         if (databaseInstance === undefined) {
-            throw new Error("SensorDeviceMeasurementRepository: Provided database reference is undefined.");
+            throw new Error("[SensorDeviceMeasurementRepository]: Provided database reference is undefined.");
         }
         
         this._database = databaseInstance;
@@ -32,15 +32,15 @@ export class SensorDeviceMeasurementRepository {
             air_contamination_percentage INTEGER NULL,
             timestamp DATE NOT NULL);`;
 
-        this._logger.info("SensorDeviceMeasurementRepository: Starting the migration process.");
+        this._logger.info("[SensorDeviceMeasurementRepository]: Starting the migration process.");
 
-        this._database.exec(migrationQuery, (error: Error) => {
-            if (error != null) {
-                throw new Error(`SensorDeviceMeasurementRepository: Migration failed. ${error}`);
-            }
-        });
-
-        this._logger.info("SensorDeviceMeasurementRepository: Migration process finished.");
+        try {
+            this._database.exec(migrationQuery);
+        } catch (error) {
+            throw new Error(`[SensorDeviceMeasurementRepository]: Migration failed. ${error}`);
+        }
+        
+        this._logger.info("[SensorDeviceMeasurementRepository]: Migration process finished.");
     }
 
     public getMeasurementsOrderedByTimestamp(): Array<SensorDeviceMeasurement> {
@@ -55,31 +55,20 @@ export class SensorDeviceMeasurementRepository {
             FROM Sensor_Device_Measurements
             ORDER BY timestamp DESC;`;
         
-        const resultData = new Array<SensorDeviceMeasurement>();
-
-        this._database.each(queryString, (error: Error, row: any) => {
-            if (error != null) {
-                this._logger.error("SensorDeviceMeasurementRepository: Can not retrieve row for 'getMeasurementsOrderedByTimestamp' query.");
-            }
-
-            resultData.push({
+        const statement = this._database.prepare(queryString);
+        
+        const mappedResult: Array<SensorDeviceMeasurement> = statement.all().map((row) => {
+            return {
                 id: row.id,
                 temperatureSensorOne: row.temperatureSensorOne,
                 temperatureSensorTwo: row.temperatureSensorTwo,
                 temperatureSensorThree: row.temperatureSensorThree,
                 airContaminationPercentage: row.airContaminationPercentage,
                 timestamp: row.timestamp
-            });
-        }, (error: Error, count: number) => {
-            if (error != null) {
-                this._logger.error("SensorDeviceMeasurementRepository: 'getMeasurementsOrderedByTimestamp' query failed.");
-                resultData.splice(0, resultData.length);
             }
+        })
 
-            this._logger.info(`SensorDeviceMeasurementRepository: 'getMeasurementsOrderedByTimestamp' query finished. Retrievied ${count} rows.`);
-        });
-
-        return resultData;
+        return mappedResult;
     }
 
     public insertMeasurement(measurement: SensorDeviceMeasurement): void {
@@ -88,18 +77,17 @@ export class SensorDeviceMeasurementRepository {
             (temperature_sensor_one, temperature_sensor_two, temperature_sensor_three, air_contamination_percentage, timestamp)
             VALUES(?, ?, ?, ?, ?);`;
 
-        this._database.run(queryString, [
+        const statement = this._database.prepare(queryString);
+
+        const results = statement.run(
             measurement.temperatureSensorOne,
             measurement.temperatureSensorTwo,
             measurement.temperatureSensorThree,
             measurement.airContaminationPercentage,
-            measurement.timestamp
-        ], (_: RunResult, error: Error) => {
-            if (error != null) {
-                this._logger.error("SensorDeviceMeasurementRepository: 'insertMeasurement' insert query failed.");
-            }
-        });
+            measurement.timestamp.getTime());
+
+        if (results.changes !== 1) {
+            throw new Error("[SensorDeviceMeasurementRepository]: Failed to insert measurement into the database.");
+        }
     }
-
-
 }
