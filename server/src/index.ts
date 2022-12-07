@@ -3,13 +3,15 @@ import dotenv from 'dotenv';
 import { UnitOfWork } from "./unit-of-work";
 import winston, { Logger } from "winston";
 import path from "path";
-import { exit } from "process";
 import { SensorDeviceService } from "@services/sensor-device.service";
+import { exit } from "process";
 
 let _server: Server = undefined;
 let _unitOfWork: UnitOfWork = undefined;
 let _sensorDeviceService: SensorDeviceService = undefined;
 let _logger: Logger = undefined;
+
+let _disposing = false;
 
 try {
     dotenv.config();
@@ -40,22 +42,28 @@ try {
         _logger
     );
 
-    process.on('SIGINT', () => disposeHandlers());
-    process.on('SIGTERM', () => disposeHandlers());
-    process.on('exit', () => disposeHandlers());
+    process.on('SIGINT', () => disposeAneClose(0));
+    process.on('SIGTERM', () => disposeAneClose(0));
+    process.on('exit', () => disposeAneClose(0));
 
     _server.listen(Number(process.env.PORT));
 
 } catch (error: unknown) {
     if (_logger != undefined) {
-        _logger.error(`Unexpected error occured. ${error}`);
+        _logger.error(`[Program] Unexpected error occured. ${error}`);
     }
 
-    disposeHandlers();
-    exit(1);
+    disposeAneClose(1);
 }
 
-function disposeHandlers(): void {
+function disposeAneClose(returnCode: number): void {
+    if (_disposing) return;
+    _disposing = true;
+    
+    if (_logger !== undefined) {
+        _logger.info("[Program] Releaseing resources and closing the application.");
+    }
+    
     if (_server !== undefined) {
         _server.dispose();
         _server = undefined;
@@ -67,8 +75,11 @@ function disposeHandlers(): void {
     }
 
     if (_logger !== undefined) {
-        // TODO: Wait here for flushing of the log file
         _logger.end();
         _logger = undefined;
     }
+
+    // NOTE: Workaround for the file logger flushing problem 
+    setTimeout(() => {}, 1000 * 4);
+    exit(returnCode);
 }
