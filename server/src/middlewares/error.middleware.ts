@@ -12,20 +12,17 @@ export class ErrorMiddleware {
         this._logger = loggerInstance;
     }
 
-    public handle(_1: Request, _2: Response, next: NextFunction): void {
-        try {
-            next();
-        } catch(error: any) {
-            this._logger.info("[ErrorMiddleware]: Error caught by the error middleware.");
-
-            if (error instanceof Error) {
-                this._logger.error(error.message);
-            } else {
-                const errorMessage = String(error);
-                this._logger.error(errorMessage);
-            }
-
-            // TODO: Redirect to some kind of error page
+    public handle(error: Error, _1: Request, response: Response, _: NextFunction): void {
+        this._logger.info("[ErrorMiddleware]: Error caught by the error middleware.");
+        
+        if (error instanceof Error) {
+            this._logger.error(error.message);
+        } else {
+            const errorMessage = String(error);
+            this._logger.error(errorMessage);
         }
+
+        response.status(500);
+        response.redirect('error');
     }
 }

@@ -43,7 +43,6 @@ export class Server {
         this._viewController = new ViewController(this._sensorDeviceService, this._logger);
 
         this.configureExpress();
-        this.configureExpressEndpoints();
 
         this.configureSocket();
     }
@@ -52,11 +51,6 @@ export class Server {
         // NOTE: Define EJS as the view engine for server-side view rendering
         this._application.set("views", path.join(__dirname, 'views'));
         this._application.set("view engine", "ejs");
-
-        // NOTE: Add custom global error handling middleware
-        this._application.use((_: any, request: Request, response: Response, next: NextFunction): void => {
-            this._errorMiddleware.handle(request, response, next);
-        });
 
         // NOTE: Define static files location
         this._application.use('/static', express.static(path.join(__dirname, 'static')));
@@ -69,22 +63,31 @@ export class Server {
             response.setHeader("Access-Control-Allow-Headers", "Access-Control-Allow-Origin,Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers,Authorization");
             next();
         });
-    }
 
-    private configureExpressEndpoints(): void {
+        // NOTE: Configure home page via view controller
         this._application.get('/', (request: Request, response: Response) => {
             this._viewController.handleIndex(request, response);
         });
 
+        // NOTE: Configure error page via view controller
+        this._application.get('/error', (request: Request, response: Response) => {
+            this._viewController.handleError(request, response);
+        })
+
+        // NOTE: Configure fallback to home page as wildcard
         this._application.get('*', (_: Request, response: Response) => {
             response.statusCode = 301;
             response.redirect('/');
         });
+
+        // NOTE: Add custom global error handling middleware
+        this._application.use((error: any, request: Request, response: Response, next: NextFunction): void => {
+            this._errorMiddleware.handle(error, request, response, next);
+        });
     }
 
     private configureSocket(): void {
-        this._socket.on('connection', (socket: WebSocket) => {
-            
+        this._socket.on('connection', (socket: WebSocket) => {            
             // TODO: This is a dirty work-around
             const ipAddress = (socket as any)._socket.remoteAddress;
 
