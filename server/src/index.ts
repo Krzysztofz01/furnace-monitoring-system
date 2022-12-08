@@ -1,10 +1,10 @@
-import { Server } from "./server";
 import dotenv from 'dotenv';
-import { UnitOfWork } from "./unit-of-work";
 import winston, { Logger } from "winston";
 import path from "path";
 import { SensorDeviceService } from "@services/sensor-device.service";
 import { exit } from "process";
+import { UnitOfWork } from "@server/unit-of-work";
+import { Server } from '@server/server';
 
 let _server: Server = undefined;
 let _unitOfWork: UnitOfWork = undefined;

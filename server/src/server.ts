@@ -5,7 +5,7 @@ import { Logger } from "winston";
 import { SensorDeviceService } from "@services/sensor-device.service";
 import { ViewController } from "@controllers/view.controlller";
 import { WebSocket, WebSocketServer } from "ws";
-import { ErrorMiddleware } from "./middlewares/error.middleware";
+import { ErrorMiddleware } from "@middlewares/error.middleware";
 
 const DEFAULT_APP_PORT = 80;
 

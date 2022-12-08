@@ -1,7 +1,7 @@
 import { Result, ValueResult } from "@models/result";
 import { SensorDeviceMeasurement, UNSPECIFIED_ID } from "@models/sensor-device-measurement.model";
+import { UnitOfWork } from "@server/unit-of-work";
 import { isDateCurrentDay } from "@utilities/date.utility";
-import { UnitOfWork } from "src/unit-of-work";
 import { Logger } from "winston";
 
 export class SensorDeviceService {

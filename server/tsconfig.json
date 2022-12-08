@@ -30,7 +30,7 @@
                 "src/services/*"
             ],
             "@middlewares/*": [
-                "src/middleware/*"
+                "src/middlewares/*"
             ],
             "@views/*": [
                 "src/views/*"
@@ -40,6 +40,12 @@
             ],
             "@utilities/*": [
                 "src/utilities/*"
+            ],
+            "@server/server": [
+                "src/server.ts"
+            ],
+            "@server/unit-of-work": [
+                "src/unit-of-work.ts"
             ]
         }
     },
