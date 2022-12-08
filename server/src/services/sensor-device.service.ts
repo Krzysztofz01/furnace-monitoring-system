@@ -39,16 +39,13 @@ export class SensorDeviceService {
     }
 
     public popMeasurement(): ValueResult<SensorDeviceMeasurement> {
-        try {
-            // TODO: Implement query specific for that scenario.
-            const measurements = this._unitOfWork.sensorDeviceMeasurementRepository.getMeasurementsOrderedByTimestamp();
-            if (measurements.length === 0) return { isSuccess: false, value: undefined };
-
-            return { isSuccess: true, value: measurements[0] };
-        } catch (error) {
-            this._logger.warn(`SensorDeviceService: Failure on 'pushMeasurement'. ${error}`);
+        const measurement = this._unitOfWork.sensorDeviceMeasurementRepository.getLatestMeasurement();
+        if (measurement === undefined) {
+            this._logger.warn("[SensorDeviceService]: Failed to retrive the latest measurement.");
             return { isSuccess: false, value: undefined };
         }
+
+        return { isSuccess: true, value: measurement };
     }
 
     public popHundredLatestMeasurements(): ValueResult<Array<SensorDeviceMeasurement>> {

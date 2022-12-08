@@ -43,6 +43,34 @@ export class SensorDeviceMeasurementRepository {
         this._logger.info("[SensorDeviceMeasurementRepository]: Migration process finished.");
     }
 
+    public getLatestMeasurement(): SensorDeviceMeasurement | undefined {
+        const queryString = `
+        SELECT
+        id as 'id',
+        temperature_sensor_one as 'temperatureSensorOne',
+        temperature_sensor_two as 'temperatureSensorTwo',
+        temperature_sensor_three as 'temperatureSensorThree',
+        air_contamination_percentage as 'airContaminationPercentage',
+        timestamp as 'timestamp'
+        FROM Sensor_Device_Measurements
+        ORDER BY timestamp DESC
+        LIMIT 1;`;
+
+        const statement = this._database.prepare(queryString);
+
+        const result = statement.get();
+        if (result === undefined) return undefined;
+
+        return {
+            id: result.id,
+            temperatureSensorOne: result.temperatureSensorOne,
+            temperatureSensorTwo: result.temperatureSensorTwo,
+            temperatureSensorThree: result.temperatureSensorThree,
+            airContaminationPercentage: result.airContaminationPercentage,
+            timestamp: result.timestamp
+        };
+    }
+
     public getMeasurementsOrderedByTimestamp(): Array<SensorDeviceMeasurement> {
         const queryString = `
             SELECT
