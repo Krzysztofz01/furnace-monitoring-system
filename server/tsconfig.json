@@ -37,6 +37,9 @@
             ],
             "@models/*": [
                 "src/models/*"
+            ],
+            "@utilities/*": [
+                "src/utilities/*"
             ]
         }
     },

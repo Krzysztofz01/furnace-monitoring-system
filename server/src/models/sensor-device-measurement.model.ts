@@ -6,3 +6,5 @@ export interface SensorDeviceMeasurement {
     airContaminationPercentage: number | undefined;
     timestamp: Date;
 }
+
+export const UNSPECIFIED_ID = -1;

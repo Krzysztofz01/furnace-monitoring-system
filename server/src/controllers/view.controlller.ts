@@ -1,4 +1,5 @@
 import { SensorDeviceService } from "@services/sensor-device.service";
+import { isDateCurrentDay } from "@utilities/date.utility";
 import { Request, Response } from "express";
 import { Logger } from "winston";
 
@@ -62,7 +63,7 @@ export class ViewController {
         const hours = (dateObj.getHours().toString().length === 1) ?
             `0${dateObj.getHours().toString().length}` : dateObj.getHours().toString().length;
 
-        if (this.isTimestmpFromToday(dateObj)) {
+        if (isDateCurrentDay(dateObj)) {
             return `${ hours }:${ minutes }`;
         }
 
@@ -74,14 +75,5 @@ export class ViewController {
         const year = dateObj.getFullYear().toString();
         
         return `${ hours }:${ minutes } ${ day }-${ month }-${ year }`;
-    }
-
-    private isTimestmpFromToday(date: Date): boolean {
-        const dateObj = new Date(date);
-        const today = new Date(Date.now());
-
-        return dateObj.getDate() === today.getDate() &&
-            dateObj.getMonth() === today.getMonth() &&
-            dateObj.getFullYear() === today.getFullYear();
     }
 }
