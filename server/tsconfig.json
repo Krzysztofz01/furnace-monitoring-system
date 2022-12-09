@@ -4,7 +4,10 @@
         "module": "CommonJS",
         "esModuleInterop": true,
         "moduleResolution": "node",
+        //"strict": true,
         "allowJs": true,
+        //"experimentalDecorators": true,
+        //"emitDecoratorMetadata": true,
         "allowSyntheticDefaultImports": true,
         "importHelpers": true,
         "alwaysStrict": true,
@@ -17,6 +20,7 @@
         "noImplicitAny": false,
         "noImplicitThis": false,
         "strictNullChecks": false,
+        "rootDir": "./src",
         "outDir": "./dist",
         "baseUrl": ".",
         "paths": {

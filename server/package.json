@@ -6,6 +6,7 @@
   "author": "Krzysztofz01",
   "private": "true",
   "scripts": {
+    "start": "node dist/index.js",
     "watch": "ts-node -r tsconfig-paths/register src/index.ts",
     "build:server": "tsc -p tsconfig.json",
     "build:views": "npx tailwindcss -i ./src/static/style.css -o ./src/static/tailwind.css --minify"
