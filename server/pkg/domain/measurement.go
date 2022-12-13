@@ -8,20 +8,21 @@ type Measurement struct {
 	TemperatureSensorTwo       TemperatureReading      `json:"temperatureSensorTwo"`
 	TemperatureSensorThree     TemperatureReading      `json:"temperatureSensorThree"`
 	AirContaminationPercentage AirContaminationReading `json:"airContaminationPercentage"`
+	TimestampUtc               int64                   `json:"timestampUtc"`
 }
 
 type TemperatureReading struct {
-	value     float64 `json:"value"`
-	isDefined bool    `json:"isDefined"`
+	Value     float64 `json:"value"`
+	IsDefined bool    `json:"isDefined"`
 }
 
 type AirContaminationReading struct {
-	value     int  `json:"value"`
-	isDefined bool `json:"isDefined"`
+	Value     int  `json:"value"`
+	IsDefined bool `json:"isDefined"`
 }
 
 type MeasurementRepository interface {
-	GetLatesstMeasurement() (*Measurement, error)
+	GetLatestMeasurement() (*Measurement, error)
 	GetAllMeasurements() ([]*Measurement, error)
 	GetCurrentDayMeasurements() ([]*Measurement, error)
 	InsertMeasurement(m *Measurement) error
