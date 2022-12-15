@@ -1,0 +1,14 @@
+{
+  "name": "furnace-monitoring-system-server-public",
+  "version": "0.0.0",
+  "repository": "https://github.com/Krzysztofz01/furnace-monitoring-system",
+  "author": "Krzysztofz01",
+  "private": true,
+  "scripts": {
+    "build:views": "npx tailwindcss -i ./style.css -o ./assets/tailwind.css --minify",
+    "watch:views": "npx tailwindcss -i ./style.css -o ./assets/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.2.4"
+  }
+}
