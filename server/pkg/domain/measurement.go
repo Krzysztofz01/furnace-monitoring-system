@@ -8,7 +8,7 @@ type Measurement struct {
 	TemperatureSensorTwo       TemperatureReading      `json:"temperatureSensorTwo"`
 	TemperatureSensorThree     TemperatureReading      `json:"temperatureSensorThree"`
 	AirContaminationPercentage AirContaminationReading `json:"airContaminationPercentage"`
-	TimestampUtc               int64                   `json:"timestampUtc"`
+	TimestampUnix              int64                   `json:"timestampUnix"`
 }
 
 type TemperatureReading struct {
@@ -17,8 +17,8 @@ type TemperatureReading struct {
 }
 
 type AirContaminationReading struct {
-	Value     int  `json:"value"`
-	IsDefined bool `json:"isDefined"`
+	Value     int64 `json:"value"`
+	IsDefined bool  `json:"isDefined"`
 }
 
 type MeasurementRepository interface {
