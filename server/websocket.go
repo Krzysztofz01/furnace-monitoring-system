@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -22,6 +23,7 @@ type WebsocketServer struct {
 	sensorMeasurementChannel chan protocol.EventPayload
 }
 
+// TODO: Add hjandling to all standard websocket errors, i.e. EOF
 var Instance *WebsocketServer
 
 func CreateWebSocketServer() error {
@@ -290,4 +292,88 @@ func (wss *WebsocketServer) handleHostDisposal() {
 			}
 		}
 	}
+}
+
+func (wss *WebsocketServer) StoreSensorHost(hostId uuid.UUID, socket *websocket.Conn) error {
+	if hostId == uuid.Nil {
+		return errors.New("server: the uninitialize uuid is can not be used as an identifer")
+	}
+
+	if socket == nil {
+		return errors.New("server: the socket instance is not initialized")
+	}
+
+	// TODO: Investigate if there is a possible race-condition while using socket.WriteMessage() reference and Host.Send()
+	wss.mutexSensorHosts.Lock()
+	defer wss.mutexSensorHosts.Unlock()
+
+	_, hostExists := wss.sensorHosts[hostId]
+	if hostExists {
+		return errors.New("server: a host with the given identifier is already stored")
+	}
+
+	wss.sensorHosts[hostId] = CreateHost(hostId, socket)
+	return nil
+}
+
+func (wss *WebsocketServer) StoreDashboardHost(hostId uuid.UUID, socket *websocket.Conn) error {
+	if hostId == uuid.Nil {
+		return errors.New("server: the uninitialize uuid is can not be used as an identifer")
+	}
+
+	if socket == nil {
+		return errors.New("server: the socket instance is not initialized")
+	}
+
+	// TODO: Investigate if there is a possible race-condition while using socket.WriteMessage() reference and Host.Send()
+	wss.mutexDashboardHosts.Lock()
+	defer wss.mutexDashboardHosts.Unlock()
+
+	_, hostExists := wss.dashboardHosts[hostId]
+	if hostExists {
+		return errors.New("server: a host with the given identifier is already stored")
+	}
+
+	wss.dashboardHosts[hostId] = CreateHost(hostId, socket)
+	return nil
+}
+
+func (wss *WebsocketServer) DisposeSensorHost(hostId uuid.UUID) (bool, error) {
+	if hostId == uuid.Nil {
+		return false, errors.New("server: the uninitialize uuid is not pointing at any host")
+	}
+
+	// TODO: Investigate if there is a possible deadlock while disposing a host with a locked internal mutex due to data sending
+	wss.mutexSensorHosts.Lock()
+	defer wss.mutexSensorHosts.Unlock()
+
+	host, hostExists := wss.sensorHosts[hostId]
+	if !hostExists {
+		return false, errors.New("server: host with given uuid does not exist")
+	}
+
+	err := host.Dispose()
+	delete(wss.sensorHosts, hostId)
+
+	return true, err
+}
+
+func (wss *WebsocketServer) DisposeDashboardHost(hostId uuid.UUID) (bool, error) {
+	if hostId == uuid.Nil {
+		return false, errors.New("server: the uninitialize uuid is not pointing at any host")
+	}
+
+	// TODO: Investigate if there is a possible deadlock while disposing a host with a locked internal mutex due to data sending
+	wss.mutexDashboardHosts.Lock()
+	defer wss.mutexDashboardHosts.Unlock()
+
+	host, hostExists := wss.dashboardHosts[hostId]
+	if !hostExists {
+		return false, errors.New("server: host with given uuid does not exist")
+	}
+
+	err := host.Dispose()
+	delete(wss.sensorHosts, hostId)
+
+	return true, err
 }

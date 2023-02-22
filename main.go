@@ -31,12 +31,12 @@ func main() {
 		return c.String(http.StatusOK, "Hello world!")
 	})
 
-	e.GET("/sensor", func(c echo.Context) error {
+	e.GET("socket/sensor", func(c echo.Context) error {
 		server.Instance.UpgradeSensorHostConnection(c.Request(), c.Response().Writer)
 		return nil
 	})
 
-	e.GET("/dashboard", func(c echo.Context) error {
+	e.GET("socket/dashboard", func(c echo.Context) error {
 		fmt.Println("Panel endpoint hit")
 		server.Instance.UpgradeDashboardHostConnection(c.Request(), c.Response().Writer)
 		return nil
