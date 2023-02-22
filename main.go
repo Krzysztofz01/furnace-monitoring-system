@@ -32,7 +32,7 @@ func main() {
 	})
 
 	e.GET("/sensor", func(c echo.Context) error {
-		server.Instance.UpgradeSensorClientConnection(c.Request(), c.Response().Writer)
+		server.Instance.UpgradeSensorHostConnection(c.Request(), c.Response().Writer)
 		return nil
 	})
 

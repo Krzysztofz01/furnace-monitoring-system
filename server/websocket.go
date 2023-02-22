@@ -19,7 +19,7 @@ type WebsocketServer struct {
 	dashboardHosts      map[uuid.UUID]*Host
 	mutexDashboardHosts sync.Mutex
 
-	sensorMeasurementChannel chan string
+	sensorMeasurementChannel chan protocol.EventPayload
 }
 
 var Instance *WebsocketServer
@@ -30,7 +30,7 @@ func CreateWebSocketServer() error {
 	Instance.mutexSensorHosts = sync.Mutex{}
 	Instance.dashboardHosts = make(map[uuid.UUID]*Host)
 	Instance.mutexDashboardHosts = sync.Mutex{}
-	Instance.sensorMeasurementChannel = make(chan string)
+	Instance.sensorMeasurementChannel = make(chan protocol.EventPayload)
 
 	go Instance.handleSensorMeasurements()
 	go Instance.handleHostDisposal()
@@ -44,25 +44,34 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 }
 
-func (wss *WebsocketServer) UpgradeSensorClientConnection(r *http.Request, w http.ResponseWriter) {
+func (wss *WebsocketServer) UpgradeSensorHostConnection(r *http.Request, w http.ResponseWriter) {
 	socket, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Println(fmt.Errorf("server: failed to upgrade the connection to websocket: %w", err))
 		return
 	}
 
-	// TODO: Solution for hostid preservation
-	hostId := uuid.New()
-	connectionEventPayload, err := protocol.CreateDashboardConnectedEventPayload(hostId)
+	_, connectionPayloadBuffer, err := socket.ReadMessage()
 	if err != nil {
-		fmt.Println(fmt.Errorf("server: failed to create the sensor connected event payload: %w", err))
+		// TODO: Handle this situation. Log and exit
+		fmt.Println(fmt.Errorf("server: failed to retrievie the connection message from the socket: %w", err))
 		return
 	}
 
-	if err := socket.WriteMessage(1, connectionEventPayload); err != nil {
-		fmt.Println(fmt.Errorf("server: failed to send the connection event payload: %w", err))
+	connectionEventPayload, err := protocol.ParseEventPayloadBuffer(connectionPayloadBuffer)
+	if err != nil {
+		// TODO: Handle this situation. Log and exit
+		fmt.Println(fmt.Errorf("server: failed to retrievie the connection message from the socket: %w", err))
 		return
+	} else {
+		if connectionEventPayload.GetEventType() != protocol.SensorConnectedEvent {
+			// TODO: Handle this situation. Log and exit
+			fmt.Println("server: different event payload expected")
+			return
+		}
 	}
+
+	hostId := connectionEventPayload.GetHostId()
 
 	defer func() {
 		// NOTE: Defering the handling of host disconnection
@@ -79,7 +88,7 @@ func (wss *WebsocketServer) UpgradeSensorClientConnection(r *http.Request, w htt
 	}()
 
 	for {
-		_, messagePayload, err := socket.ReadMessage()
+		_, eventPayloadBuffer, err := socket.ReadMessage()
 		if err != nil {
 			// TODO: Handle this situation. Introduce failure count, to dispose host that generates a lot of failures
 			fmt.Println(fmt.Errorf("server: failed to retrievie the message from the socket: %w", err))
@@ -96,19 +105,23 @@ func (wss *WebsocketServer) UpgradeSensorClientConnection(r *http.Request, w htt
 		}
 		wss.mutexSensorHosts.Unlock()
 
-		eventType, err := protocol.GetEventTypeFromEventPayload(string(messagePayload))
+		eventPayload, err := protocol.ParseEventPayloadBuffer(eventPayloadBuffer)
 		if err != nil {
 			// TODO: Handle this situation. Introduce failure count, to dispose host that generates a lot of failures
-			fmt.Println(fmt.Errorf("server: failed to retrieve the event type from the event payload: %w", err))
+			fmt.Println(fmt.Errorf("server: failed to parse the received event payload: %w", err))
 			continue
 		}
 
-		switch eventType {
+		switch eventPayload.GetEventType() {
+		case protocol.SensorConnectedEvent:
+			{
+				// TODO: Handle this situation. Log and continue (threat it as error)
+				continue
+			}
 		case protocol.SensorMeasurementEvent:
 			{
-				wss.sensorMeasurementChannel <- string(messagePayload)
+				wss.sensorMeasurementChannel <- eventPayload
 			}
-
 		case protocol.SensorDisconnectedEvent:
 			{
 				wss.mutexSensorHosts.Lock()
@@ -137,17 +150,27 @@ func (wss *WebsocketServer) UpgradeDashboardHostConnection(r *http.Request, w ht
 		return
 	}
 
-	hostId := uuid.New()
-	connectionEventPayload, err := protocol.CreateDashboardConnectedEventPayload(hostId)
+	_, connectionPayloadBuffer, err := socket.ReadMessage()
 	if err != nil {
-		fmt.Println(fmt.Errorf("server: failed to crate the dashboard connected event payload: %w", err))
+		// TODO: Handle this situation. Log and exit
+		fmt.Println(fmt.Errorf("server: failed to retrievie the connection message from the socket: %w", err))
 		return
 	}
 
-	if err := socket.WriteMessage(1, connectionEventPayload); err != nil {
-		fmt.Println(fmt.Errorf("server: failed to send the connection event payload: %w", err))
+	connectionEventPayload, err := protocol.ParseEventPayloadBuffer(connectionPayloadBuffer)
+	if err != nil {
+		// TODO: Handle this situation. Log and exit
+		fmt.Println(fmt.Errorf("server: failed to retrievie the connection message from the socket: %w", err))
 		return
+	} else {
+		if connectionEventPayload.GetEventType() != protocol.DashboardConnectedEvent {
+			// TODO: Handle this situation. Log and exit
+			fmt.Println("server: different event payload expected")
+			return
+		}
 	}
+
+	hostId := connectionEventPayload.GetHostId()
 
 	defer func() {
 		// NOTE: Defering the handling of host disconnection
@@ -181,14 +204,19 @@ func (wss *WebsocketServer) UpgradeDashboardHostConnection(r *http.Request, w ht
 		}
 		wss.mutexDashboardHosts.Unlock()
 
-		eventType, err := protocol.GetEventTypeFromEventPayload(string(messagePayload))
+		eventPayload, err := protocol.ParseEventPayloadBuffer(messagePayload)
 		if err != nil {
 			// TODO: Handle this situation. Introduce failure count, to dispose host that generates a lot of failures
-			fmt.Println(fmt.Errorf("server: failed to retrieve the event type from the event payload: %w", err))
+			fmt.Println(fmt.Errorf("server: failed to parse the received event payload: %w", err))
 			continue
 		}
 
-		switch eventType {
+		switch eventPayload.GetEventType() {
+		case protocol.DashboardConnectedEvent:
+			{
+				// TODO: Handle this situation. Log and continue (threat it as error)
+				continue
+			}
 		case protocol.DashboardDisconnectedEvent:
 			{
 				wss.mutexDashboardHosts.Lock()
@@ -212,7 +240,7 @@ func (wss *WebsocketServer) UpgradeDashboardHostConnection(r *http.Request, w ht
 
 func (wss *WebsocketServer) handleSensorMeasurements() {
 	for measurementPayload := range wss.sensorMeasurementChannel {
-		measurement, err := domain.CreateMeasurementFromEventPayload(string(measurementPayload))
+		measurement, err := domain.CreateMeasurementFromEventPayload(measurementPayload)
 		if err != nil {
 			// TODO: Handle this situation. Drop the measurement and log
 			fmt.Println(fmt.Errorf("server: failed to create a measurement instance: %w", err))
