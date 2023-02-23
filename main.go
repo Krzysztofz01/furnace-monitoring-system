@@ -1,12 +1,11 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/Krzysztofz01/furnace-monitoring-system/config"
 	"github.com/Krzysztofz01/furnace-monitoring-system/db"
 	"github.com/Krzysztofz01/furnace-monitoring-system/log"
 	"github.com/Krzysztofz01/furnace-monitoring-system/server"
+	"github.com/Krzysztofz01/furnace-monitoring-system/view"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -36,9 +35,10 @@ func main() {
 	e.Use(middleware.Gzip())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
+	e.Use(view.EmbeddedWebApp())
 
-	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello world!")
+	e.GET("api/statistics", func(c echo.Context) error {
+		return nil
 	})
 
 	e.GET("socket/sensor", func(c echo.Context) error {
@@ -51,6 +51,5 @@ func main() {
 		return nil
 	})
 
-	log.Instance.Info("Furnace monitoring system server started")
 	log.Instance.Fatal(e.Start(":5000"))
 }
