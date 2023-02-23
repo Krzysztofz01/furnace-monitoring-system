@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
+	"github.com/Krzysztofz01/furnace-monitoring-system/config"
 	"github.com/Krzysztofz01/furnace-monitoring-system/db"
 	"github.com/Krzysztofz01/furnace-monitoring-system/server"
 	"github.com/labstack/echo/v4"
@@ -11,18 +11,19 @@ import (
 )
 
 func main() {
+	if err := config.CreateConfig(); err != nil {
+		panic("main: failed to create the config instance")
+	}
+
 	if err := db.CreateDatabase(true); err != nil {
-		// TODO: Panic here!
-		fmt.Println(err)
+		panic("main: failed to create the database driver instance")
 	}
 
 	if err := server.CreateWebSocketServer(); err != nil {
-		// TODO: Panic here!
-		fmt.Println(err)
+		panic("main: failed to create the websocket server instance")
 	}
 
 	e := echo.New()
-
 	e.Use(middleware.Gzip())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
@@ -37,10 +38,9 @@ func main() {
 	})
 
 	e.GET("socket/dashboard", func(c echo.Context) error {
-		fmt.Println("Panel endpoint hit")
 		server.Instance.UpgradeDashboardHostConnection(c.Request(), c.Response().Writer)
 		return nil
 	})
 
-	e.Logger.Fatal(e.Start(":5000"))
+	e.Start(":5000")
 }
