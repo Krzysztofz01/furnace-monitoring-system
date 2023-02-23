@@ -5,6 +5,7 @@ import (
 
 	"github.com/Krzysztofz01/furnace-monitoring-system/config"
 	"github.com/Krzysztofz01/furnace-monitoring-system/db"
+	"github.com/Krzysztofz01/furnace-monitoring-system/log"
 	"github.com/Krzysztofz01/furnace-monitoring-system/server"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -15,11 +16,19 @@ func main() {
 		panic("main: failed to create the config instance")
 	}
 
+	if disposeFunc, err := log.CreateLogger(); err != nil {
+		panic("main: failed to create the logger instance")
+	} else {
+		defer disposeFunc()
+	}
+
 	if err := db.CreateDatabase(true); err != nil {
+		log.Instance.Fatalf("Failed to create the database driver instance: %s", err)
 		panic("main: failed to create the database driver instance")
 	}
 
 	if err := server.CreateWebSocketServer(); err != nil {
+		log.Instance.Fatalf("Failed to create the websocket server instance: %s", err)
 		panic("main: failed to create the websocket server instance")
 	}
 
@@ -42,5 +51,6 @@ func main() {
 		return nil
 	})
 
-	e.Start(":5000")
+	log.Instance.Info("Furnace monitoring system server started")
+	log.Instance.Fatal(e.Start(":5000"))
 }
