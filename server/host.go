@@ -8,60 +8,79 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// TODO: Move to websocket or config
+const (
+	maxInactivitySeconds int = 60
+	maxErrorCount        int = 5
+)
+
 type Host struct {
 	id           uuid.UUID
 	socket       *websocket.Conn
+	errorCount   int
 	lastActivity time.Time
 	mu           sync.Mutex
 }
 
-// FIXME: Socket nil check
+// TODO: Socket nil check
 func CreateHost(hostId uuid.UUID, socket *websocket.Conn) *Host {
-	host := new(Host)
-	host.id = hostId
-	host.socket = socket
-	host.lastActivity = time.Now()
-	host.mu = sync.Mutex{}
-
-	return host
-}
-
-func (h *Host) Send(e []byte) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if err := h.socket.WriteMessage(1, e); err != nil {
-		return err
-	} else {
-		h.lastActivity = time.Now()
-		return nil
+	return &Host{
+		id:           hostId,
+		socket:       socket,
+		errorCount:   0,
+		lastActivity: time.Now(),
+		mu:           sync.Mutex{},
 	}
 }
 
-func (h *Host) SendAsJson(v interface{}) error {
+func (h *Host) Send(buffer []byte) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if err := h.socket.WriteJSON(v); err != nil {
-		return err
+	err := h.socket.WriteMessage(1, buffer)
+	if err != nil {
+		h.errorCount += 1
 	} else {
 		h.lastActivity = time.Now()
-		return nil
 	}
+
+	return err
 }
 
-func (h *Host) BumpActivity() {
+func (h *Host) Read() ([]byte, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.lastActivity = time.Now()
+	_, buffer, err := h.socket.ReadMessage()
+	if err != nil {
+		h.errorCount += 1
+	} else {
+		h.lastActivity = time.Now()
+	}
+
+	return buffer, err
 }
 
-func (h *Host) GetSecondsSinceLastActivity() float64 {
+func (h *Host) BumpErrorCount() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	return time.Since(h.lastActivity).Seconds()
+	h.errorCount += 1
+	return h.errorCount < maxErrorCount
+}
+
+func (h *Host) HasInactivityTimeExceeded() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	return time.Since(h.lastActivity).Seconds() > float64(maxInactivitySeconds)
+}
+
+func (h *Host) HasErrorCountExceeded() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	return h.errorCount > maxErrorCount
 }
 
 func (h *Host) Dispose() error {
