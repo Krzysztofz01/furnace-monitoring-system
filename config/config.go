@@ -7,7 +7,8 @@ import (
 )
 
 type Config struct {
-	VerboseLogging bool `mapstructure:"verbose-logging"`
+	VerboseLogging bool     `mapstructure:"verbose-logging"`
+	SensorHostIds  []string `mapstructure:"sensor-host-ids"`
 }
 
 const (

@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Krzysztofz01/furnace-monitoring-system/config"
 	"github.com/Krzysztofz01/furnace-monitoring-system/db"
 	"github.com/Krzysztofz01/furnace-monitoring-system/domain"
 	"github.com/Krzysztofz01/furnace-monitoring-system/log"
 	"github.com/Krzysztofz01/furnace-monitoring-system/protocol"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -69,6 +71,12 @@ func (wss *WebsocketServer) UpgradeSensorHostConnection(r *http.Request, w http.
 	}
 
 	hostId := connectionEventPayload.GetHostId()
+	if !wss.ValidateSensorHostId(hostId) {
+		log.Instance.Debug("The host with the given id is not permited to be a sensor\n")
+		socket.Close()
+		return
+	}
+
 	if err := wss.sensorHostPool.InsertHost(hostId, socket); err != nil {
 		log.Instance.Debugf("Failed to store the host connection: %s\n", err)
 		return
@@ -351,4 +359,18 @@ func (wss *WebsocketServer) handleHostErrorCountCheck() {
 			}
 		}
 	}
+}
+
+func (wss *WebsocketServer) ValidateSensorHostId(hostId uuid.UUID) bool {
+	if config.Instance.SensorHostIds == nil {
+		return false
+	}
+
+	for _, allowedHostId := range config.Instance.SensorHostIds {
+		if hostId == uuid.MustParse(allowedHostId) {
+			return true
+		}
+	}
+
+	return false
 }

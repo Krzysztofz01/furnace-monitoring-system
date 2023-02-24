@@ -1,3 +1,4 @@
 {
-    "verbose-logging": true
+    "verbose-logging": true,
+    "sensor-host-ids": []
 }
