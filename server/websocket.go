@@ -1,41 +1,39 @@
 package server
 
 import (
-	"errors"
-	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/Krzysztofz01/furnace-monitoring-system/db"
 	"github.com/Krzysztofz01/furnace-monitoring-system/domain"
+	"github.com/Krzysztofz01/furnace-monitoring-system/log"
 	"github.com/Krzysztofz01/furnace-monitoring-system/protocol"
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
+const (
+	timeOffsetInactivityCheckMinutes int = 2
+	timeOffsetErrorCountCheckMinutes int = 3
+)
+
 type WebsocketServer struct {
-	sensorHosts         map[uuid.UUID]*Host
-	mutexSensorHosts    sync.Mutex
-	dashboardHosts      map[uuid.UUID]*Host
-	mutexDashboardHosts sync.Mutex
+	dashboardHostPool *HostPool
+	sensorHostPool    *HostPool
 
 	sensorMeasurementChannel chan protocol.EventPayload
 }
 
-// TODO: Add hjandling to all standard websocket errors, i.e. EOF
 var Instance *WebsocketServer
 
 func CreateWebSocketServer() error {
 	Instance = new(WebsocketServer)
-	Instance.sensorHosts = make(map[uuid.UUID]*Host)
-	Instance.mutexSensorHosts = sync.Mutex{}
-	Instance.dashboardHosts = make(map[uuid.UUID]*Host)
-	Instance.mutexDashboardHosts = sync.Mutex{}
+	Instance.dashboardHostPool = CreateHostPool()
+	Instance.sensorHostPool = CreateHostPool()
 	Instance.sensorMeasurementChannel = make(chan protocol.EventPayload)
 
 	go Instance.handleSensorMeasurements()
-	go Instance.handleHostDisposal()
+	go Instance.handleHostInactivityCheck()
+	go Instance.handleHostErrorCountCheck()
 
 	return nil
 }
@@ -49,96 +47,89 @@ var upgrader = websocket.Upgrader{
 func (wss *WebsocketServer) UpgradeSensorHostConnection(r *http.Request, w http.ResponseWriter) {
 	socket, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		fmt.Println(fmt.Errorf("server: failed to upgrade the connection to websocket: %w", err))
+		log.Instance.Debugf("Failed to upgrade the connection to websocket communication: %s\n", err)
 		return
 	}
 
 	_, connectionPayloadBuffer, err := socket.ReadMessage()
 	if err != nil {
-		// TODO: Handle this situation. Log and exit
-		fmt.Println(fmt.Errorf("server: failed to retrievie the connection message from the socket: %w", err))
+		log.Instance.Debugf("Failed to retrieve the connection payload event message from the socket: %s\n", err)
 		return
 	}
 
-	connectionEventPayload, err := protocol.ParseEventPayloadBuffer(connectionPayloadBuffer)
+	connectionEventPayload, err := protocol.ParseEventPayloadFromBuffer(connectionPayloadBuffer)
 	if err != nil {
-		// TODO: Handle this situation. Log and exit
-		fmt.Println(fmt.Errorf("server: failed to retrievie the connection message from the socket: %w", err))
+		log.Instance.Debugf("Failed to parse the connection payload event: %s\n", err)
 		return
 	} else {
 		if connectionEventPayload.GetEventType() != protocol.SensorConnectedEvent {
-			// TODO: Handle this situation. Log and exit
-			fmt.Println("server: different event payload expected")
+			log.Instance.Debugf("The retrieved event payload is not of the expected type: %d\n", connectionEventPayload.GetEventType())
 			return
 		}
 	}
 
 	hostId := connectionEventPayload.GetHostId()
+	if err := wss.sensorHostPool.InsertHost(hostId, socket); err != nil {
+		log.Instance.Debugf("Failed to store the host connection: %s\n", err)
+		return
+	}
+
+	log.Instance.Infof("Sensor host connection upgraded for host: %s with address: %s\n", hostId, socket.RemoteAddr().String())
 
 	defer func() {
-		// NOTE: Defering the handling of host disconnection
-		wss.mutexSensorHosts.Lock()
-		defer wss.mutexSensorHosts.Unlock()
-
-		host, isStored := wss.sensorHosts[hostId]
-		if isStored {
-			if err := host.Dispose(); err != nil {
-				fmt.Println(fmt.Errorf("server: problem occured while disposing the host connection: %w", err))
-			}
-			delete(wss.sensorHosts, hostId)
+		if deleted, err := wss.sensorHostPool.RemoveHost(hostId); !deleted {
+			log.Instance.Debug("The sensor host has not been deleted, but it might be deleted previously\n")
+			return
+		} else if err != nil {
+			log.Instance.Debugf("The sensor host has been deleted, but some errors occured: %s\n", err)
+			return
 		}
+
+		log.Instance.Debug("The sensor host has been disposed and deleted\n")
 	}()
 
 	for {
-		_, eventPayloadBuffer, err := socket.ReadMessage()
+		eventPayloadBuffer, err := wss.sensorHostPool.ReadFromHost(hostId)
 		if err != nil {
-			// TODO: Handle this situation. Introduce failure count, to dispose host that generates a lot of failures
-			fmt.Println(fmt.Errorf("server: failed to retrievie the message from the socket: %w", err))
-			continue
+			log.Instance.Debugf("Failed to retrieve the payload event message from the socket: %s\n", err)
+			return
 		}
 
-		// TODO: Should we lock this with RWMutex
-		wss.mutexSensorHosts.Lock()
-		host, isStored := wss.sensorHosts[hostId]
-		if isStored {
-			host.BumpActivity()
-		} else {
-			wss.sensorHosts[hostId] = CreateHost(hostId, socket)
-		}
-		wss.mutexSensorHosts.Unlock()
-
-		eventPayload, err := protocol.ParseEventPayloadBuffer(eventPayloadBuffer)
+		eventPayload, err := protocol.ParseEventPayloadFromBuffer(eventPayloadBuffer)
 		if err != nil {
-			// TODO: Handle this situation. Introduce failure count, to dispose host that generates a lot of failures
-			fmt.Println(fmt.Errorf("server: failed to parse the received event payload: %w", err))
+			// TODO: Add host failure count
+			log.Instance.Debugf("server: failed to parse the received event payload: %w", err)
 			continue
 		}
 
 		switch eventPayload.GetEventType() {
 		case protocol.SensorConnectedEvent:
 			{
-				// TODO: Handle this situation. Log and continue (threat it as error)
+				// TODO: Add host failure count
+				log.Instance.Debug("Sensor connected event received on listening loop. Possible protocol error\n")
 				continue
 			}
 		case protocol.SensorMeasurementEvent:
 			{
+				log.Instance.Debug("Sensor measurement event received. Pushing the payload to measurement channel\n")
 				wss.sensorMeasurementChannel <- eventPayload
+				continue
 			}
 		case protocol.SensorDisconnectedEvent:
 			{
-				wss.mutexSensorHosts.Lock()
-				host := wss.sensorHosts[hostId]
-				if err := host.Dispose(); err != nil {
-					fmt.Println(fmt.Errorf("server: problem occured while disposing the host connection: %w", err))
+				log.Instance.Debug("Sensor disconnected event received. Performing the host disposing process.\n")
+				if deleted, err := wss.sensorHostPool.RemoveHost(hostId); !deleted {
+					log.Instance.Debug("The sensor host has not been deleted")
+					return
+				} else if err != nil {
+					log.Instance.Debugf("The sensor host has been deleted, but some errors occured: %s\n", err)
+					return
 				}
-
-				delete(wss.sensorHosts, hostId)
-				wss.mutexSensorHosts.Unlock()
 			}
 		default:
 			{
-				// TODO: Handle this situation. Log and continue
-				fmt.Println(fmt.Errorf("server: invalid event type payload provided: %w", err))
+				// TODO: Add host failure count
+				log.Instance.Debug("Undefined event received on listening loop. Possible protocol error\n")
 				continue
 			}
 		}
@@ -148,92 +139,83 @@ func (wss *WebsocketServer) UpgradeSensorHostConnection(r *http.Request, w http.
 func (wss *WebsocketServer) UpgradeDashboardHostConnection(r *http.Request, w http.ResponseWriter) {
 	socket, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		fmt.Println(fmt.Errorf("server: failed to upgrade the connection to websocket: %w", err))
+		log.Instance.Debugf("Failed to upgrade the connection to websocket communication: %s\n", err)
 		return
 	}
 
 	_, connectionPayloadBuffer, err := socket.ReadMessage()
 	if err != nil {
-		// TODO: Handle this situation. Log and exit
-		fmt.Println(fmt.Errorf("server: failed to retrievie the connection message from the socket: %w", err))
+		log.Instance.Debugf("Failed to retrieve the connection payload event message from the socket: %s\n", err)
 		return
 	}
 
-	connectionEventPayload, err := protocol.ParseEventPayloadBuffer(connectionPayloadBuffer)
+	connectionEventPayload, err := protocol.ParseEventPayloadFromBuffer(connectionPayloadBuffer)
 	if err != nil {
-		// TODO: Handle this situation. Log and exit
-		fmt.Println(fmt.Errorf("server: failed to retrievie the connection message from the socket: %w", err))
+		log.Instance.Debugf("Failed to parse the connection payload event: %s\n", err)
 		return
 	} else {
 		if connectionEventPayload.GetEventType() != protocol.DashboardConnectedEvent {
-			// TODO: Handle this situation. Log and exit
-			fmt.Println("server: different event payload expected")
+			log.Instance.Debugf("The retrieved event payload is not of the expected type: %d\n", connectionEventPayload.GetEventType())
 			return
 		}
 	}
 
 	hostId := connectionEventPayload.GetHostId()
+	if err := wss.dashboardHostPool.InsertHost(hostId, socket); err != nil {
+		log.Instance.Debugf("Failed to store the host connection: %s\n", err)
+		return
+	}
+
+	log.Instance.Infof("Dashboard host connection upgraded for host: %s with address: %s", hostId, socket.RemoteAddr().String())
 
 	defer func() {
-		// NOTE: Defering the handling of host disconnection
-		wss.mutexDashboardHosts.Lock()
-		defer wss.mutexDashboardHosts.Unlock()
-
-		host, isStored := wss.dashboardHosts[hostId]
-		if isStored {
-			if err := host.Dispose(); err != nil {
-				fmt.Println(fmt.Errorf("server: problem occured while disposing the host connection: %w", err))
-			}
-			delete(wss.dashboardHosts, hostId)
+		if deleted, err := wss.dashboardHostPool.RemoveHost(hostId); !deleted {
+			log.Instance.Debug("The dashboard host has not been deleted, but it might be deleted previously\n")
+			return
+		} else if err != nil {
+			log.Instance.Debugf("The dashboard host has been deleted, but some errors occured: %s\n", err)
+			return
 		}
+
+		log.Instance.Debug("The dashboard host has been disposed and deleted\n")
 	}()
 
 	for {
-		_, messagePayload, err := socket.ReadMessage()
+		eventPayloadBuffer, err := wss.dashboardHostPool.ReadFromHost(hostId)
 		if err != nil {
-			// TODO: Handle this situation. Introduce failure count, to dispose host that generates a lot of failures
-			fmt.Println(fmt.Errorf("server: failed to retrievie the message from the socket: %w", err))
-			continue
+			log.Instance.Debugf("Failed to retrieve the payload event message from the socket: %s\n", err)
+			return
 		}
 
-		// TODO: Should we lock this with RWMutex
-		wss.mutexDashboardHosts.Lock()
-		host, isStored := wss.dashboardHosts[hostId]
-		if isStored {
-			host.BumpActivity()
-		} else {
-			wss.dashboardHosts[hostId] = CreateHost(hostId, socket)
-		}
-		wss.mutexDashboardHosts.Unlock()
-
-		eventPayload, err := protocol.ParseEventPayloadBuffer(messagePayload)
+		eventPayload, err := protocol.ParseEventPayloadFromBuffer(eventPayloadBuffer)
 		if err != nil {
-			// TODO: Handle this situation. Introduce failure count, to dispose host that generates a lot of failures
-			fmt.Println(fmt.Errorf("server: failed to parse the received event payload: %w", err))
+			// TODO: Add host failure count
+			log.Instance.Debugf("server: failed to parse the received event payload: %w", err)
 			continue
 		}
 
 		switch eventPayload.GetEventType() {
 		case protocol.DashboardConnectedEvent:
 			{
-				// TODO: Handle this situation. Log and continue (threat it as error)
+				// TODO: Add host failure count
+				log.Instance.Debug("Dashboard connected event received on listening loop. Possible protocol error\n")
 				continue
 			}
 		case protocol.DashboardDisconnectedEvent:
 			{
-				wss.mutexDashboardHosts.Lock()
-				host := wss.dashboardHosts[hostId]
-				if err := host.Dispose(); err != nil {
-					fmt.Println(fmt.Errorf("server: problem occured while disposing the host connection: %w", err))
+				log.Instance.Debug("Dashboard disconnected event received. Performing the host disposing process.\n")
+				if deleted, err := wss.dashboardHostPool.RemoveHost(hostId); !deleted {
+					log.Instance.Debug("The dashboard host has not been deleted, but it might be deleted previously\n")
+					return
+				} else if err != nil {
+					log.Instance.Debugf("The dashboard host has been deleted, but some errors occured: %s\n", err)
+					return
 				}
-
-				delete(wss.dashboardHosts, hostId)
-				wss.mutexDashboardHosts.Unlock()
 			}
 		default:
 			{
-				// TODO: Handle this situation. Log and continue
-				fmt.Println(fmt.Errorf("server: invalid event type payload provided: %w", err))
+				// TODO: Add host failure count
+				log.Instance.Debug("Undefined event received on listening loop. Possible protocol error\n")
 				continue
 			}
 		}
@@ -244,136 +226,129 @@ func (wss *WebsocketServer) handleSensorMeasurements() {
 	for measurementPayload := range wss.sensorMeasurementChannel {
 		measurement, err := domain.CreateMeasurementFromEventPayload(measurementPayload)
 		if err != nil {
-			// TODO: Handle this situation. Drop the measurement and log
-			fmt.Println(fmt.Errorf("server: failed to create a measurement instance: %w", err))
+			log.Instance.Debugf("Failed to parse the measurement payload in order to create the domain measurement representation")
 			continue
 		}
 
-		db.InsertMeasurement(db.Instance, measurement)
+		if err := db.InsertMeasurement(db.Instance, measurement); err != nil {
+			log.Instance.Debugf("Failed to store the measurement in the database: %w", err)
+		}
 
-		// TODO: Should we lock this with RWMutex
-		for _, host := range wss.dashboardHosts {
-			// TODO: Implement the sending of the measurements
-			if err := host.Send([]byte{}); err != nil {
-				// TODO: Handle this situation. The failure can indicate that there is no connection and the host can be removed
-				fmt.Println(fmt.Errorf("server: failed to create a measurement instance: %w", err))
+		hostIds := wss.dashboardHostPool.GetAllHostIds()
+		log.Instance.Debugf("About to pass the measurement payload to: %d dashboard hosts", len(hostIds))
+
+		for _, hostId := range hostIds {
+			if err := wss.dashboardHostPool.SendToHost(hostId, measurementPayload); err != nil {
+				log.Instance.Debugf("Failed to pass the measurement payload to dashboard host: %s", hostId)
+			} else {
+				log.Instance.Debugf("Successful passed the measurement payload to dashboard host: %s", hostId)
+			}
+		}
+	}
+}
+
+func (wss *WebsocketServer) handleHostInactivityCheck() {
+	// TODO: Fine-tune the time of this task
+	for range time.Tick(time.Minute * time.Duration(timeOffsetInactivityCheckMinutes)) {
+		dashboardHosts := wss.dashboardHostPool.GetAllHostIds()
+		log.Instance.Debugf("About to check inactivity time for: %d dashboard hosts", len(dashboardHosts))
+
+		for _, hostId := range dashboardHosts {
+			exceeded, err := wss.dashboardHostPool.HasHostInactivityTimeExceeded(hostId)
+			if err != nil {
+				// TODO: Error count bump here?
+				log.Instance.Debugf("Failed to perform inactivity time validation for host: %s", hostId)
 				continue
 			}
+
+			if exceeded {
+				log.Instance.Debugf("Inactivity time of the host: %s exceeded, about to dispose the host.", hostId)
+
+				if deleted, err := wss.dashboardHostPool.RemoveHost(hostId); !deleted {
+					log.Instance.Debug("The dashboard host has not been deleted, but it might be deleted previously\n")
+					continue
+				} else if err != nil {
+					log.Instance.Debugf("The dashboard host has been deleted, but some errors occured: %s\n", err)
+					continue
+				}
+			}
+		}
+
+		sensorHosts := wss.sensorHostPool.GetAllHostIds()
+		log.Instance.Debugf("About to check inactivity time for: %d sensor hosts", len(sensorHosts))
+
+		for _, hostId := range sensorHosts {
+			exceeded, err := wss.sensorHostPool.HasHostInactivityTimeExceeded(hostId)
+			if err != nil {
+				// TODO: Error count bump here?
+				log.Instance.Debugf("Failed to perform inactivity time validation for host: %s", hostId)
+				continue
+			}
+
+			if exceeded {
+				log.Instance.Debugf("Inactivity time of the host: %s exceeded, about to dispose the host.", hostId)
+
+				if deleted, err := wss.sensorHostPool.RemoveHost(hostId); !deleted {
+					log.Instance.Debug("The sensor host has not been deleted, but it might be deleted previously\n")
+					continue
+				} else if err != nil {
+					log.Instance.Debugf("The sensor host has been deleted, but some errors occured: %s\n", err)
+					continue
+				}
+			}
 		}
 	}
 }
 
-func (wss *WebsocketServer) handleHostDisposal() {
+func (wss *WebsocketServer) handleHostErrorCountCheck() {
 	// TODO: Fine-tune the time of this task
-	for range time.Tick(time.Second * 60) {
-		for hostId, host := range wss.dashboardHosts {
-			// TODO: Fine-tune the time-to-life of the hosts
-			if host.GetSecondsSinceLastActivity() < 30 {
-				wss.mutexDashboardHosts.Lock()
-				if err := host.Dispose(); err != nil {
-					fmt.Println(fmt.Errorf("server: problem occured while disposing the host connection: %w", err))
-				}
+	for range time.Tick(time.Minute * time.Duration(timeOffsetErrorCountCheckMinutes)) {
+		dashboardHosts := wss.dashboardHostPool.GetAllHostIds()
+		log.Instance.Debugf("About to check error count for: %d dashboard hosts", len(dashboardHosts))
 
-				delete(wss.dashboardHosts, hostId)
-				wss.mutexDashboardHosts.Unlock()
+		for _, hostId := range dashboardHosts {
+			exceeded, err := wss.dashboardHostPool.HasHostErrorCountExceeded(hostId)
+			if err != nil {
+				// TODO: Error count bump here?
+				log.Instance.Debugf("Failed to perform error count validation for host: %s", hostId)
+				continue
+			}
+
+			if exceeded {
+				log.Instance.Debugf("Error count of the host: %s exceeded, about to dispose the host.", hostId)
+
+				if deleted, err := wss.dashboardHostPool.RemoveHost(hostId); !deleted {
+					log.Instance.Debug("The dashboard host has not been deleted, but it might be deleted previously\n")
+					continue
+				} else if err != nil {
+					log.Instance.Debugf("The dashboard host has been deleted, but some errors occured: %s\n", err)
+					continue
+				}
 			}
 		}
 
-		for hostId, host := range wss.sensorHosts {
-			// TODO: Fine-tune the time-to-life of the hosts
-			if host.GetSecondsSinceLastActivity() < 30 {
-				wss.mutexSensorHosts.Lock()
-				if err := host.Dispose(); err != nil {
-					fmt.Println(fmt.Errorf("server: problem occured while disposing the host connection: %w", err))
-				}
+		sensorHosts := wss.sensorHostPool.GetAllHostIds()
+		log.Instance.Debugf("About to check error count for: %d sensor hosts", len(sensorHosts))
 
-				delete(wss.sensorHosts, hostId)
-				wss.mutexSensorHosts.Unlock()
+		for _, hostId := range sensorHosts {
+			exceeded, err := wss.sensorHostPool.HasHostErrorCountExceeded(hostId)
+			if err != nil {
+				// TODO: Error count bump here?
+				log.Instance.Debugf("Failed to perform error count validation for host: %s", hostId)
+				continue
+			}
+
+			if exceeded {
+				log.Instance.Debugf("Error count of the host: %s exceeded, about to dispose the host.", hostId)
+
+				if deleted, err := wss.sensorHostPool.RemoveHost(hostId); !deleted {
+					log.Instance.Debug("The sensor host has not been deleted, but it might be deleted previously\n")
+					continue
+				} else if err != nil {
+					log.Instance.Debugf("The sensor host has been deleted, but some errors occured: %s\n", err)
+					continue
+				}
 			}
 		}
 	}
-}
-
-func (wss *WebsocketServer) StoreSensorHost(hostId uuid.UUID, socket *websocket.Conn) error {
-	if hostId == uuid.Nil {
-		return errors.New("server: the uninitialize uuid is can not be used as an identifer")
-	}
-
-	if socket == nil {
-		return errors.New("server: the socket instance is not initialized")
-	}
-
-	// TODO: Investigate if there is a possible race-condition while using socket.WriteMessage() reference and Host.Send()
-	wss.mutexSensorHosts.Lock()
-	defer wss.mutexSensorHosts.Unlock()
-
-	_, hostExists := wss.sensorHosts[hostId]
-	if hostExists {
-		return errors.New("server: a host with the given identifier is already stored")
-	}
-
-	wss.sensorHosts[hostId] = CreateHost(hostId, socket)
-	return nil
-}
-
-func (wss *WebsocketServer) StoreDashboardHost(hostId uuid.UUID, socket *websocket.Conn) error {
-	if hostId == uuid.Nil {
-		return errors.New("server: the uninitialize uuid is can not be used as an identifer")
-	}
-
-	if socket == nil {
-		return errors.New("server: the socket instance is not initialized")
-	}
-
-	// TODO: Investigate if there is a possible race-condition while using socket.WriteMessage() reference and Host.Send()
-	wss.mutexDashboardHosts.Lock()
-	defer wss.mutexDashboardHosts.Unlock()
-
-	_, hostExists := wss.dashboardHosts[hostId]
-	if hostExists {
-		return errors.New("server: a host with the given identifier is already stored")
-	}
-
-	wss.dashboardHosts[hostId] = CreateHost(hostId, socket)
-	return nil
-}
-
-func (wss *WebsocketServer) DisposeSensorHost(hostId uuid.UUID) (bool, error) {
-	if hostId == uuid.Nil {
-		return false, errors.New("server: the uninitialize uuid is not pointing at any host")
-	}
-
-	// TODO: Investigate if there is a possible deadlock while disposing a host with a locked internal mutex due to data sending
-	wss.mutexSensorHosts.Lock()
-	defer wss.mutexSensorHosts.Unlock()
-
-	host, hostExists := wss.sensorHosts[hostId]
-	if !hostExists {
-		return false, errors.New("server: host with given uuid does not exist")
-	}
-
-	err := host.Dispose()
-	delete(wss.sensorHosts, hostId)
-
-	return true, err
-}
-
-func (wss *WebsocketServer) DisposeDashboardHost(hostId uuid.UUID) (bool, error) {
-	if hostId == uuid.Nil {
-		return false, errors.New("server: the uninitialize uuid is not pointing at any host")
-	}
-
-	// TODO: Investigate if there is a possible deadlock while disposing a host with a locked internal mutex due to data sending
-	wss.mutexDashboardHosts.Lock()
-	defer wss.mutexDashboardHosts.Unlock()
-
-	host, hostExists := wss.dashboardHosts[hostId]
-	if !hostExists {
-		return false, errors.New("server: host with given uuid does not exist")
-	}
-
-	err := host.Dispose()
-	delete(wss.sensorHosts, hostId)
-
-	return true, err
 }
