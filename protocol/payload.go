@@ -17,6 +17,7 @@ const (
 type EventPayload interface {
 	GetEventType() EventType
 	GetHostId() uuid.UUID
+	GetBuffer() []byte
 	GetSize() int
 	GetFieldString(index int) (string, error)
 	GetFieldInt(index int) (int, error)
@@ -29,7 +30,7 @@ type eventPayload struct {
 	payloadParts []string
 }
 
-func ParseEventPayloadBuffer(epb []byte) (EventPayload, error) {
+func ParseEventPayloadFromBuffer(epb []byte) (EventPayload, error) {
 	ep := new(eventPayload)
 	epParts := strings.Split(string(epb), PayloadSeparatorSymbolString)
 	if len(epParts) < 2 {
@@ -59,6 +60,22 @@ func ParseEventPayloadBuffer(epb []byte) (EventPayload, error) {
 	}
 
 	return ep, nil
+}
+
+// TODO: DRY-out the implementation...
+func ParseEventPayloadFromValueSlice(values []string) (EventPayload, error) {
+	lastValueIndex := len(values) - 1
+	bufferBuilder := strings.Builder{}
+
+	for index, value := range values {
+		bufferBuilder.WriteString(value)
+		if index != lastValueIndex {
+			bufferBuilder.WriteRune(PayloadSeparatorSymbolRune)
+		}
+	}
+
+	buffer := []byte(bufferBuilder.String())
+	return ParseEventPayloadFromBuffer(buffer)
 }
 
 func (ep *eventPayload) GetEventType() EventType {
@@ -105,4 +122,18 @@ func (ep *eventPayload) GetFieldFloat64(index int) (float64, error) {
 	}
 
 	return value, nil
+}
+
+func (ep *eventPayload) GetBuffer() []byte {
+	lastPartIndex := len(ep.payloadParts) - 1
+	bufferBuilder := strings.Builder{}
+
+	for index, part := range ep.payloadParts {
+		bufferBuilder.WriteString(part)
+		if index != lastPartIndex {
+			bufferBuilder.WriteRune(PayloadSeparatorSymbolRune)
+		}
+	}
+
+	return []byte(bufferBuilder.String())
 }
