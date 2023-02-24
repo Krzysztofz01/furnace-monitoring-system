@@ -8,9 +8,12 @@ import (
 	"time"
 
 	"github.com/Krzysztofz01/furnace-monitoring-system/domain"
+	"github.com/Krzysztofz01/furnace-monitoring-system/log"
 )
 
 func PerformMeasurementTableMigration(database *sql.DB) error {
+	log.Instance.Debugln("Running the measurement domain database migration.")
+
 	if database == nil {
 		return errors.New("db: the provided database connection instance is not initialzied")
 	}

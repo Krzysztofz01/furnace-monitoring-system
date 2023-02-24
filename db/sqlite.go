@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/Krzysztofz01/furnace-monitoring-system/log"
 	_ "modernc.org/sqlite"
 )
 
-const databaseName string = "furnace-monitoring-system.db"
+const databaseName string = "db/furnace-monitoring-system.db"
 
 var Instance *sql.DB
 
@@ -18,11 +19,16 @@ func CreateDatabase(runMigrations bool) error {
 	}
 
 	Instance = db
+	log.Instance.Debugln("Database driver instance initialzied successful.")
 
 	if runMigrations {
+		log.Instance.Debugln("Starting the database migration process.")
+
 		if err = PerformMeasurementTableMigration(Instance); err != nil {
 			return fmt.Errorf("db: failed to perform migrations: %w", err)
 		}
+
+		log.Instance.Debugln("Database migrations finished successful.")
 	}
 
 	return nil
