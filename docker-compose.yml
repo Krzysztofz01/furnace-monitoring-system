@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  furnace-monitoring-system-server:
+    container_name: furnace-monitoring-system-server
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./fms-database:/fms/db
+      - ./fms-log:/fms/log
+      - ./fms-config:/fms/config
+    ports:
+      - "7000:5000"
+volumes:
+  fms-database:
+  fms-log:
+  fms-config:
