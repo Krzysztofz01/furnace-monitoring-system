@@ -7,10 +7,8 @@ services:
     volumes:
       - ./fms-database:/fms/db
       - ./fms-log:/fms/log
-      - ./fms-config:/fms/config
     ports:
       - "7000:5000"
 volumes:
   fms-database:
   fms-log:
-  fms-config:
