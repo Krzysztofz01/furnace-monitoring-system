@@ -12,7 +12,7 @@ type Config struct {
 }
 
 const (
-	configFilePath string = "config.json"
+	configFilePath string = "config/config.json"
 )
 
 var Instance *Config
