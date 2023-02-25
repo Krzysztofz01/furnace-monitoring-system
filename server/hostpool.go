@@ -13,13 +13,13 @@ import (
 // TODO: Optimize using RWMutex
 type HostPool struct {
 	hosts map[uuid.UUID]*Host
-	mutex sync.Mutex
+	mutex sync.RWMutex
 }
 
 func CreateHostPool() *HostPool {
 	return &HostPool{
 		hosts: make(map[uuid.UUID]*Host),
-		mutex: sync.Mutex{},
+		mutex: sync.RWMutex{},
 	}
 }
 
@@ -67,16 +67,15 @@ func (hp *HostPool) SendToHost(hostId uuid.UUID, payload protocol.EventPayload) 
 		return errors.New("server: invalid unitialized uuid provided as host identifier")
 	}
 
-	hp.mutex.Lock()
-	defer hp.mutex.Unlock()
+	hp.mutex.RLock()
+	defer hp.mutex.RUnlock()
 
 	host, hostExists := hp.hosts[hostId]
 	if !hostExists {
 		return errors.New("server: a host with the given identifier is not stored")
 	}
 
-	// TODO: Implement payload to []byte conversion
-	if err := host.Send([]byte{}); err != nil {
+	if err := host.Send(payload.GetBuffer()); err != nil {
 		return fmt.Errorf("server: failed to send the payload to given host: %w", err)
 	} else {
 		return nil
@@ -88,8 +87,8 @@ func (hp *HostPool) ReadFromHost(hostId uuid.UUID) ([]byte, error) {
 		return nil, errors.New("server: invalid unitialized uuid provided as host identifier")
 	}
 
-	hp.mutex.Lock()
-	defer hp.mutex.Unlock()
+	hp.mutex.RLock()
+	defer hp.mutex.RUnlock()
 
 	host, hostExists := hp.hosts[hostId]
 	if !hostExists {
@@ -104,8 +103,8 @@ func (hp *HostPool) HasHostInactivityTimeExceeded(hostId uuid.UUID) (bool, error
 		return false, errors.New("server: invalid unitialized uuid provided as host identifier")
 	}
 
-	hp.mutex.Lock()
-	defer hp.mutex.Unlock()
+	hp.mutex.RLock()
+	defer hp.mutex.RUnlock()
 
 	host, hostExists := hp.hosts[hostId]
 	if !hostExists {
@@ -120,8 +119,8 @@ func (hp *HostPool) HasHostErrorCountExceeded(hostId uuid.UUID) (bool, error) {
 		return false, errors.New("server: invalid unitialized uuid provided as host identifier")
 	}
 
-	hp.mutex.Lock()
-	defer hp.mutex.Unlock()
+	hp.mutex.RLock()
+	defer hp.mutex.RUnlock()
 
 	host, hostExists := hp.hosts[hostId]
 	if !hostExists {
@@ -149,7 +148,10 @@ func (hp *HostPool) BumpHostErrorCount(hostId uuid.UUID) error {
 }
 
 func (hp *HostPool) GetAllHostIds() []uuid.UUID {
-	hostIds := make([]uuid.UUID, 0, len(hp.hosts))
+	hp.mutex.RLock()
+	defer hp.mutex.RUnlock()
+
+	hostIds := make([]uuid.UUID, 0)
 	for hostId := range hp.hosts {
 		hostIds = append(hostIds, hostId)
 	}
