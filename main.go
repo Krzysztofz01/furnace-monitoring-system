@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/Krzysztofz01/furnace-monitoring-system/config"
 	"github.com/Krzysztofz01/furnace-monitoring-system/db"
+	"github.com/Krzysztofz01/furnace-monitoring-system/handler"
 	"github.com/Krzysztofz01/furnace-monitoring-system/log"
 	"github.com/Krzysztofz01/furnace-monitoring-system/server"
 	"github.com/Krzysztofz01/furnace-monitoring-system/view"
@@ -37,9 +38,7 @@ func main() {
 	e.Use(middleware.CORS())
 	e.Use(view.EmbeddedWebApp())
 
-	e.GET("api/statistics", func(c echo.Context) error {
-		return nil
-	})
+	e.GET("api/measurements", handler.HandleLatestMeasurements)
 
 	e.GET("socket/sensor", func(c echo.Context) error {
 		server.Instance.UpgradeSensorHostConnection(c.Request(), c.Response().Writer)
