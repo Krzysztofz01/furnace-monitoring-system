@@ -3,12 +3,16 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/Krzysztofz01/furnace-monitoring-system/log"
 	_ "modernc.org/sqlite"
 )
 
-const databaseName string = "db/furnace-monitoring-system.db"
+const (
+	databaseName   string        = "db/furnace-monitoring-system.db"
+	contextTimeout time.Duration = 5 * time.Second
+)
 
 var Instance *sql.DB
 
