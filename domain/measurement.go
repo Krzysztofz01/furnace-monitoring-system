@@ -19,6 +19,14 @@ type Measurement struct {
 	TimestampUnix              int64
 }
 
+type MeasurementDto struct {
+	TemperatureChannelOne      float64 `json:"temperatureOne"`
+	TemperatureChannelTwo      float64 `json:"temperatureTwo"`
+	TemperatureChannelThree    float64 `json:"temperatureThree"`
+	AirContaminationPercentage float64 `json:"airContamination"`
+	TimestampUnix              int64   `json:"timestampUnix"`
+}
+
 // The structure of the measurement event
 // event_type;device_id;temp1;temp2;temp3;air_contamination
 
@@ -50,4 +58,14 @@ func CreateMeasurementFromEventPayload(ep protocol.EventPayload) (*Measurement, 
 	}
 
 	return measurement, nil
+}
+
+func (m *Measurement) ToDto() MeasurementDto {
+	return MeasurementDto{
+		TemperatureChannelOne:      m.TemperatureChannelOne,
+		TemperatureChannelTwo:      m.TemperatureChannelTwo,
+		TemperatureChannelThree:    m.TemperatureChannelThree,
+		AirContaminationPercentage: m.AirContaminationPercentage,
+		TimestampUnix:              m.TimestampUnix,
+	}
 }
