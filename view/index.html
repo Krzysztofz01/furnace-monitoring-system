@@ -2,12 +2,36 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + TS</title>
+    <title>Furnace Monitoring System</title>
   </head>
-  <body>
-    <div id="app"></div>
+  <body class="bg-neutral-900">
+    <div class="min-h-screen container flex flex-col justify-center space-y-20 mx-auto">
+      <div class="grid grid-cols-1 lg:grid-cols-4 space-y-4 space-x-0 lg:space-y-0 lg:space-x-4">
+        <div class="rounded-xl p-4 bg-neutral-800 lg:mx-0">
+          <h3 class="text-md font-bold text-center lg:text-left text-orange-200">First temperature sensor:</h3>
+          <h1 class="text-5xl font-bold text-center text-orange-600 mt-2"><span id="temperature-one-value">0</span>&deg;C</h1>
+        </div>
+        <div class="rounded-xl p-4 bg-neutral-800 lg:mx-0">
+          <h3 class="text-md font-bold text-center lg:text-left text-orange-200">Second temperature sensor:</h3>
+          <h1 class="text-5xl font-bold text-center text-orange-600 mt-2"><span id="temperature-two-value">0</span>&deg;C</h1>
+        </div>
+        <div class="rounded-xl p-4 bg-neutral-800 lg:mx-0">
+          <h3 class="text-md font-bold text-center lg:text-left text-orange-200">Third temperature sensor:</h3>
+          <h1 class="text-5xl font-bold text-center text-orange-600 mt-2"><span id="temperature-three-value">0</span>&deg;C</h1>
+        </div>
+        <div class="rounded-xl p-4 bg-neutral-800 lg:mx-0">
+          <h3 class="text-md font-bold text-center lg:text-left text-orange-200">Air contamination sensor:</h3>
+          <h1 class="text-5xl font-bold text-center text-orange-600 mt-2"><span id="air-contamination-value">0</span>%</h1>
+        </div>
+      </div>
+
+      <div class="flex flex-col flex-wrap items-center justify-center rounded-xl bg-neutral-800">
+          <div id="readings-chart-canvas-container" class="h-64 lg:h-96 w-full py-5 lg:py-8 px-10 lg:px-5">
+            <canvas id="readings-chart-canvas"></canvas>
+          </div>  
+      </div> 
+    </div> 
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
