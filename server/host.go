@@ -1,17 +1,10 @@
 package server
 
 import (
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-)
-
-// TODO: Move to websocket or config
-const (
-	maxInactivitySeconds int = 60
-	maxErrorCount        int = 5
 )
 
 type Host struct {
@@ -19,7 +12,7 @@ type Host struct {
 	socket       *websocket.Conn
 	errorCount   int
 	lastActivity time.Time
-	mu           sync.Mutex
+	// mu           sync.Mutex
 }
 
 // TODO: Socket nil check
@@ -29,13 +22,13 @@ func CreateHost(hostId uuid.UUID, socket *websocket.Conn) *Host {
 		socket:       socket,
 		errorCount:   0,
 		lastActivity: time.Now(),
-		mu:           sync.Mutex{},
+		// mu:           sync.Mutex{},
 	}
 }
 
 func (h *Host) Send(buffer []byte) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	// h.mu.Lock()
+	// defer h.mu.Unlock()
 
 	err := h.socket.WriteMessage(1, buffer)
 	if err != nil {
@@ -48,8 +41,8 @@ func (h *Host) Send(buffer []byte) error {
 }
 
 func (h *Host) Read() ([]byte, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	// h.mu.Lock()
+	// defer h.mu.Unlock()
 
 	_, buffer, err := h.socket.ReadMessage()
 	if err != nil {
@@ -62,30 +55,44 @@ func (h *Host) Read() ([]byte, error) {
 }
 
 func (h *Host) BumpErrorCount() bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	// h.mu.Lock()
+	// defer h.mu.Unlock()
 
 	h.errorCount += 1
 	return h.errorCount < maxErrorCount
 }
 
-func (h *Host) HasInactivityTimeExceeded() bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+// func (h *Host) HasInactivityTimeExceeded() bool {
+// 	// h.mu.Lock()
+// 	// defer h.mu.Unlock()
 
-	return time.Since(h.lastActivity).Seconds() > float64(maxInactivitySeconds)
+// 	return time.Since(h.lastActivity).Seconds() > float64(maxInactivitySeconds)
+// }
+
+func (h *Host) GetSecondsSinceLastActivity() float64 {
+	// h.mu.Lock()
+	// defer h.mu.Unlock()
+
+	return time.Since(h.lastActivity).Seconds()
 }
 
 func (h *Host) HasErrorCountExceeded() bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	// h.mu.Lock()
+	// defer h.mu.Unlock()
 
 	return h.errorCount > maxErrorCount
 }
 
+func (h *Host) GetErrorCount() int {
+	// h.mu.Lock()
+	// defer h.mu.Unlock()
+
+	return h.errorCount
+}
+
 func (h *Host) Dispose() error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	// h.mu.Lock()
+	// defer h.mu.Unlock()
 
 	return h.socket.Close()
 }

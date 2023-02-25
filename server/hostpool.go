@@ -98,9 +98,9 @@ func (hp *HostPool) ReadFromHost(hostId uuid.UUID) ([]byte, error) {
 	return host.Read()
 }
 
-func (hp *HostPool) HasHostInactivityTimeExceeded(hostId uuid.UUID) (bool, error) {
+func (hp *HostPool) GetHostSecondsSinceLastActivity(hostId uuid.UUID) (float64, error) {
 	if hostId == uuid.Nil {
-		return false, errors.New("server: invalid unitialized uuid provided as host identifier")
+		return 0, errors.New("server: invalid unitialized uuid provided as host identifier")
 	}
 
 	hp.mutex.RLock()
@@ -108,15 +108,15 @@ func (hp *HostPool) HasHostInactivityTimeExceeded(hostId uuid.UUID) (bool, error
 
 	host, hostExists := hp.hosts[hostId]
 	if !hostExists {
-		return false, errors.New("server: a host with the given identifier is not stored")
+		return 0, errors.New("server: a host with the given identifier is not stored")
 	}
 
-	return host.HasInactivityTimeExceeded(), nil
+	return host.GetSecondsSinceLastActivity(), nil
 }
 
-func (hp *HostPool) HasHostErrorCountExceeded(hostId uuid.UUID) (bool, error) {
+func (hp *HostPool) GetHostErrorCount(hostId uuid.UUID) (int, error) {
 	if hostId == uuid.Nil {
-		return false, errors.New("server: invalid unitialized uuid provided as host identifier")
+		return 0, errors.New("server: invalid unitialized uuid provided as host identifier")
 	}
 
 	hp.mutex.RLock()
@@ -124,10 +124,10 @@ func (hp *HostPool) HasHostErrorCountExceeded(hostId uuid.UUID) (bool, error) {
 
 	host, hostExists := hp.hosts[hostId]
 	if !hostExists {
-		return false, errors.New("server: a host with the given identifier is not stored")
+		return 0, errors.New("server: a host with the given identifier is not stored")
 	}
 
-	return host.HasErrorCountExceeded(), nil
+	return host.GetErrorCount(), nil
 }
 
 func (hp *HostPool) BumpHostErrorCount(hostId uuid.UUID) error {

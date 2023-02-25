@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	timeOffsetInactivityCheckMinutes int = 2
-	timeOffsetErrorCountCheckMinutes int = 3
+	timeOffsetInactivityCheckMinutes int     = 2
+	timeOffsetErrorCountCheckMinutes int     = 3
+	maxInactivitySeconds             float64 = 60
+	maxErrorCount                    int     = 5
 )
 
 type WebsocketServer struct {
@@ -262,14 +264,14 @@ func (wss *WebsocketServer) handleHostInactivityCheck() {
 		log.Instance.Debugf("About to check inactivity time for: %d dashboard hosts", len(dashboardHosts))
 
 		for _, hostId := range dashboardHosts {
-			exceeded, err := wss.dashboardHostPool.HasHostInactivityTimeExceeded(hostId)
+			seconds, err := wss.dashboardHostPool.GetHostSecondsSinceLastActivity(hostId)
 			if err != nil {
 				// TODO: Error count bump here?
 				log.Instance.Debugf("Failed to perform inactivity time validation for host: %s", hostId)
 				continue
 			}
 
-			if exceeded {
+			if seconds > maxInactivitySeconds {
 				log.Instance.Debugf("Inactivity time of the host: %s exceeded, about to dispose the host.", hostId)
 
 				if deleted, err := wss.dashboardHostPool.RemoveHost(hostId); !deleted {
@@ -286,14 +288,14 @@ func (wss *WebsocketServer) handleHostInactivityCheck() {
 		log.Instance.Debugf("About to check inactivity time for: %d sensor hosts", len(sensorHosts))
 
 		for _, hostId := range sensorHosts {
-			exceeded, err := wss.sensorHostPool.HasHostInactivityTimeExceeded(hostId)
+			seconds, err := wss.sensorHostPool.GetHostSecondsSinceLastActivity(hostId)
 			if err != nil {
 				// TODO: Error count bump here?
 				log.Instance.Debugf("Failed to perform inactivity time validation for host: %s", hostId)
 				continue
 			}
 
-			if exceeded {
+			if seconds > maxInactivitySeconds {
 				log.Instance.Debugf("Inactivity time of the host: %s exceeded, about to dispose the host.", hostId)
 
 				if deleted, err := wss.sensorHostPool.RemoveHost(hostId); !deleted {
@@ -315,14 +317,14 @@ func (wss *WebsocketServer) handleHostErrorCountCheck() {
 		log.Instance.Debugf("About to check error count for: %d dashboard hosts", len(dashboardHosts))
 
 		for _, hostId := range dashboardHosts {
-			exceeded, err := wss.dashboardHostPool.HasHostErrorCountExceeded(hostId)
+			errorCount, err := wss.dashboardHostPool.GetHostErrorCount(hostId)
 			if err != nil {
 				// TODO: Error count bump here?
 				log.Instance.Debugf("Failed to perform error count validation for host: %s", hostId)
 				continue
 			}
 
-			if exceeded {
+			if errorCount > maxErrorCount {
 				log.Instance.Debugf("Error count of the host: %s exceeded, about to dispose the host.", hostId)
 
 				if deleted, err := wss.dashboardHostPool.RemoveHost(hostId); !deleted {
@@ -339,14 +341,14 @@ func (wss *WebsocketServer) handleHostErrorCountCheck() {
 		log.Instance.Debugf("About to check error count for: %d sensor hosts", len(sensorHosts))
 
 		for _, hostId := range sensorHosts {
-			exceeded, err := wss.sensorHostPool.HasHostErrorCountExceeded(hostId)
+			errorCount, err := wss.sensorHostPool.GetHostErrorCount(hostId)
 			if err != nil {
 				// TODO: Error count bump here?
 				log.Instance.Debugf("Failed to perform error count validation for host: %s", hostId)
 				continue
 			}
 
-			if exceeded {
+			if errorCount > maxErrorCount {
 				log.Instance.Debugf("Error count of the host: %s exceeded, about to dispose the host.", hostId)
 
 				if deleted, err := wss.sensorHostPool.RemoveHost(hostId); !deleted {
