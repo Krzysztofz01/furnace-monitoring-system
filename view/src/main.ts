@@ -15,22 +15,22 @@ const chart = new Chart(canvasElement as any, {
     labels: [],
     datasets: [
       {
-        label: "Sensor one",
+        label: "First sensor",
         data: [],
         fill: false,
-        borderColor: 'rgb(255, 0, 0)'
+        borderColor: 'rgb(234, 88, 12)'
       },
       {
-        label: "Sensor one",
+        label: "Second sensor",
         data: [],
         fill: false,
-        borderColor: 'rgb(255, 0, 0)'
+        borderColor: 'rgb(249, 115, 22)'
       },
       {
-        label: "Sensor one",
+        label: "Third sensor",
         data: [],
         fill: false,
-        borderColor: 'rgb(255, 0, 0)'
+        borderColor: 'rgb(251, 146, 60)'
       }
     ]
   },
