@@ -10,7 +10,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// TODO: Optimize using RWMutex
 type HostPool struct {
 	hosts map[uuid.UUID]*Host
 	mutex sync.RWMutex
@@ -82,20 +81,37 @@ func (hp *HostPool) SendToHost(hostId uuid.UUID, payload protocol.EventPayload) 
 	}
 }
 
+// FIXME: This method is using a very dirty workaround to prevent locking on while listeing to incoming socket messages.
+// In case of dashboard hosts it is possible to just hold the connection without listening for incoming traffic, but this
+// wont work for the sensor hosts. The current approach is unlocking the mutex after host is retrieved from the map,
+// and "is hoping" that the current host still exists in the pull while listening for network traffic. Another solution is
+// to implement a host-specific mutex used only to control the read operation
 func (hp *HostPool) ReadFromHost(hostId uuid.UUID) ([]byte, error) {
 	if hostId == uuid.Nil {
 		return nil, errors.New("server: invalid unitialized uuid provided as host identifier")
 	}
 
 	hp.mutex.RLock()
-	defer hp.mutex.RUnlock()
 
 	host, hostExists := hp.hosts[hostId]
 	if !hostExists {
+		hp.mutex.RUnlock()
 		return nil, errors.New("server: a host with the given identifier is not stored")
 	}
 
-	return host.Read()
+	hp.mutex.RUnlock()
+
+	var resultBuffer []byte
+	var err error
+	defer func() {
+		if err := recover(); err != nil {
+			resultBuffer = nil
+			err = fmt.Errorf("server: most likely the ReadFromHost workaround casued a panic: %s", err)
+		}
+	}()
+
+	resultBuffer, err = host.Read()
+	return resultBuffer, err
 }
 
 func (hp *HostPool) GetHostSecondsSinceLastActivity(hostId uuid.UUID) (float64, error) {
