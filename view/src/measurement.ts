@@ -28,7 +28,7 @@ export function GetMeasurementsFromApiResponse(requestMeasurements: Array<any>):
             TemperatureChannelTwo: measurement.temperatureTwo,
             TemperatureChannelThree: measurement.temperatureThree,
             AirContaminationPercentage: measurement.airContamination,
-            Timestamp: new Date(measurement.timestampUnix)
+            Timestamp: new Date(measurement.timestampUnix * 1000)
         }
     
         return parsedMeasurement

@@ -1,12 +1,50 @@
 import { Chart } from "chart.js";
+import { intervalToDuration } from "date-fns";
 import { Measurement } from "./measurement";
 
-const maxMeasurementCount = 50
+const maxMeasurementCount = 25
+const canvasElement = document.getElementById('readings-chart-canvas');
+
+export function CreateChart(): Chart {
+    return new Chart(canvasElement as any, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: "First sensor",
+                    data: [],
+                    fill: false,
+                    borderColor: 'rgb(234, 88, 12)'
+                },
+                {
+                    label: "Second sensor",
+                    data: [],
+                    fill: false,
+                    borderColor: 'rgb(249, 115, 22)'
+                },
+                {
+                    label: "Third sensor",
+                    data: [],
+                    fill: false,
+                    borderColor: 'rgb(251, 146, 60)'
+                }
+            ]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    })
+}
 
 export function PushMeasurementIntoChart(chart: Chart, measurement: Measurement): void {
-    // TODO: Display timestamp as label
-    PushLabelIntoChart(chart, "");
-    
+    PushLabelIntoChart(chart, GetTimestampLabel(measurement.Timestamp));
+
     PushMeasurementDataIntoChart(chart, measurement.TemperatureChannelOne, 0);
     PushMeasurementDataIntoChart(chart, measurement.TemperatureChannelTwo, 1);
     PushMeasurementDataIntoChart(chart, measurement.TemperatureChannelThree, 2);
@@ -15,8 +53,7 @@ export function PushMeasurementIntoChart(chart: Chart, measurement: Measurement)
 }
 
 export function PushMeasurementsIntoChart(chart: Chart, measurements: Array<Measurement>): void {
-    // TODO: Display timestamp as label
-    const labels = measurements.map((_) => "");
+    const labels = measurements.map((measurement) => GetTimestampLabel(measurement.Timestamp));
     PushMultipleLabelsIntoChart(chart, labels);
     
     const firstTemperatureValues = measurements.map((m) => m.TemperatureChannelOne);
@@ -48,6 +85,7 @@ function PushLabelIntoChart(chart: Chart, value: string): void {
 }
 
 function PushMultipleMeasurementDataIntoChart(chart: Chart, values: Array<number>, datasetIndex: number): void {
+    values = values.slice(-maxMeasurementCount)
     const dataOverflow = values.length + chart.data.datasets[datasetIndex].data.length - maxMeasurementCount
     if (dataOverflow > 0) {
         chart.data.datasets[datasetIndex].data.splice(0, dataOverflow);
@@ -57,10 +95,32 @@ function PushMultipleMeasurementDataIntoChart(chart: Chart, values: Array<number
 }
 
 function PushMultipleLabelsIntoChart(chart: Chart, values: Array<string>): void {
+    values = values.slice(-maxMeasurementCount)
     const dataOverflow = values.length + chart.data.labels.length - maxMeasurementCount;
     if (dataOverflow > 0) {
         chart.data.labels.splice(0, dataOverflow);
     }
 
     chart.data.labels.push(...values);
+}
+
+function GetTimestampLabel(date: Date): string {
+    const duration = intervalToDuration({
+        start: new Date(date),
+        end: new Date()
+    });
+
+    if (duration.minutes == 0) {
+        return `${duration.seconds} seconds ago`;
+    }
+
+    if (duration.hours == 0) {
+        return `${duration.minutes} minutes ago`;
+    }
+
+    if (duration.days == 0) {
+        return `${duration.hours} hours ago`;
+    }
+
+    return "";
 }

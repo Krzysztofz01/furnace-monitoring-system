@@ -1,78 +1,41 @@
+import './index.css'
 import { Chart, registerables } from 'chart.js';
 import { PushMeasurementIntoCards } from './cards';
-import { PushMeasurementIntoChart, PushMeasurementsIntoChart } from './chart';
-import './index.css'
+import { CreateChart, PushMeasurementIntoChart, PushMeasurementsIntoChart } from './chart';
 import { GetMeasurementFromMeasurementPayload, GetMeasurementsFromApiResponse } from './measurement';
+import { GetDashboardSocketServerEndpoint, GetMeasurementsServerEndpoint } from './server';
+import { GetConnectedEventPayload, IsSocketStateConnected, ResetSocketState, SetSocketStateConnected } from './socket';
 
 Chart.register(...registerables);
+const chart = CreateChart();
 
-const server = "localhost:5000"
-
-const canvasElement = document.getElementById('readings-chart-canvas');
-const chart = new Chart(canvasElement as any, {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [
-      {
-        label: "First sensor",
-        data: [],
-        fill: false,
-        borderColor: 'rgb(234, 88, 12)'
-      },
-      {
-        label: "Second sensor",
-        data: [],
-        fill: false,
-        borderColor: 'rgb(249, 115, 22)'
-      },
-      {
-        label: "Third sensor",
-        data: [],
-        fill: false,
-        borderColor: 'rgb(251, 146, 60)'
-      }
-    ]
-  },
-  options: {
-    maintainAspectRatio: false,
-    scales: {
-      y: {
-        beginAtZero: true
-      }
-    }
-  }
-})
-
-fetch(`http://${server}/api/measurements`)
+fetch(GetMeasurementsServerEndpoint())
   .then((response) => response.json())
   .then((data) => {
-    const measurements = GetMeasurementsFromApiResponse(data)
-    PushMeasurementsIntoChart(chart, measurements)
+    const measurements = GetMeasurementsFromApiResponse(data);
+    PushMeasurementIntoCards(measurements.at(-1));
+    PushMeasurementsIntoChart(chart, measurements);
   })
 
-var connectionPayloadAccepted = false
-const hostId = crypto.randomUUID()
-const socket = new WebSocket(`ws://${server}/socket/dashboard`)
+const socket = new WebSocket(GetDashboardSocketServerEndpoint());
 
 socket.addEventListener("open", (_) => {
-  if (socket.readyState != WebSocket.OPEN) return
-  if (connectionPayloadAccepted) return
+  if (socket.readyState != WebSocket.OPEN || IsSocketStateConnected()) return;
 
-  socket.send(`4;${hostId}`)
-  connectionPayloadAccepted = true
-})
+  socket.send(GetConnectedEventPayload());
+  SetSocketStateConnected();
+});
 
 socket.addEventListener("error", (event) => {
-  console.log(event)
-})
+  console.error(event);
+});
 
 socket.addEventListener("close", (_) => {
-  connectionPayloadAccepted = false
-})
+  ResetSocketState();
+});
 
 socket.addEventListener("message", (event) => {
-  const measurement = GetMeasurementFromMeasurementPayload(event.data)
-  PushMeasurementIntoCards(measurement)
-  PushMeasurementIntoChart(chart, measurement)
-})
+  const measurement = GetMeasurementFromMeasurementPayload(event.data);
+  PushMeasurementIntoCards(measurement);
+  PushMeasurementIntoChart(chart, measurement);
+});
