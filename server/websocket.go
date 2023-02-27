@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	timeOffsetInactivityCheckMinutes int     = 2
-	timeOffsetErrorCountCheckMinutes int     = 3
+	timeOffsetInactivityCheckMinutes int     = 60
+	timeOffsetErrorCountCheckMinutes int     = 2
 	maxInactivitySeconds             float64 = 60
 	maxErrorCount                    int     = 5
 )
@@ -107,16 +107,16 @@ func (wss *WebsocketServer) UpgradeSensorHostConnection(r *http.Request, w http.
 
 		eventPayload, err := protocol.ParseEventPayloadFromBuffer(eventPayloadBuffer)
 		if err != nil {
-			// TODO: Add host failure count
 			log.Instance.Debugf("server: failed to parse the received event payload: %w", err)
+			wss.sensorHostPool.BumpHostErrorCount(hostId)
 			continue
 		}
 
 		switch eventPayload.GetEventType() {
 		case protocol.SensorConnectedEvent:
 			{
-				// TODO: Add host failure count
 				log.Instance.Debug("Sensor connected event received on listening loop. Possible protocol error\n")
+				wss.sensorHostPool.BumpHostErrorCount(hostId)
 				continue
 			}
 		case protocol.SensorMeasurementEvent:
@@ -127,19 +127,13 @@ func (wss *WebsocketServer) UpgradeSensorHostConnection(r *http.Request, w http.
 			}
 		case protocol.SensorDisconnectedEvent:
 			{
-				log.Instance.Debug("Sensor disconnected event received. Performing the host disposing process.\n")
-				if deleted, err := wss.sensorHostPool.RemoveHost(hostId); !deleted {
-					log.Instance.Debug("The sensor host has not been deleted")
-					return
-				} else if err != nil {
-					log.Instance.Debugf("The sensor host has been deleted, but some errors occured: %s\n", err)
-					return
-				}
+				log.Instance.Debug("Sensor disconnected event received. Breaking the listening loop\n")
+				return
 			}
 		default:
 			{
-				// TODO: Add host failure count
 				log.Instance.Debug("Undefined event received on listening loop. Possible protocol error\n")
+				wss.sensorHostPool.BumpHostErrorCount(hostId)
 				continue
 			}
 		}
@@ -199,33 +193,27 @@ func (wss *WebsocketServer) UpgradeDashboardHostConnection(r *http.Request, w ht
 
 		eventPayload, err := protocol.ParseEventPayloadFromBuffer(eventPayloadBuffer)
 		if err != nil {
-			// TODO: Add host failure count
 			log.Instance.Debugf("server: failed to parse the received event payload: %w", err)
+			wss.dashboardHostPool.BumpHostErrorCount(hostId)
 			continue
 		}
 
 		switch eventPayload.GetEventType() {
 		case protocol.DashboardConnectedEvent:
 			{
-				// TODO: Add host failure count
 				log.Instance.Debug("Dashboard connected event received on listening loop. Possible protocol error\n")
+				wss.dashboardHostPool.BumpHostErrorCount(hostId)
 				continue
 			}
 		case protocol.DashboardDisconnectedEvent:
 			{
-				log.Instance.Debug("Dashboard disconnected event received. Performing the host disposing process.\n")
-				if deleted, err := wss.dashboardHostPool.RemoveHost(hostId); !deleted {
-					log.Instance.Debug("The dashboard host has not been deleted, but it might be deleted previously\n")
-					return
-				} else if err != nil {
-					log.Instance.Debugf("The dashboard host has been deleted, but some errors occured: %s\n", err)
-					return
-				}
+				log.Instance.Debug("Dashboard disconnected event received. Breaking the listening loop\n")
+				return
 			}
 		default:
 			{
-				// TODO: Add host failure count
 				log.Instance.Debug("Undefined event received on listening loop. Possible protocol error\n")
+				wss.dashboardHostPool.BumpHostErrorCount(hostId)
 				continue
 			}
 		}
@@ -258,7 +246,6 @@ func (wss *WebsocketServer) handleSensorMeasurements() {
 }
 
 func (wss *WebsocketServer) handleHostInactivityCheck() {
-	// TODO: Fine-tune the time of this task
 	for range time.Tick(time.Minute * time.Duration(timeOffsetInactivityCheckMinutes)) {
 		dashboardHosts := wss.dashboardHostPool.GetAllHostIds()
 		log.Instance.Debugf("About to check inactivity time for: %d dashboard hosts", len(dashboardHosts))
@@ -266,8 +253,8 @@ func (wss *WebsocketServer) handleHostInactivityCheck() {
 		for _, hostId := range dashboardHosts {
 			seconds, err := wss.dashboardHostPool.GetHostSecondsSinceLastActivity(hostId)
 			if err != nil {
-				// TODO: Error count bump here?
 				log.Instance.Debugf("Failed to perform inactivity time validation for host: %s", hostId)
+				wss.dashboardHostPool.BumpHostErrorCount(hostId)
 				continue
 			}
 
@@ -290,8 +277,8 @@ func (wss *WebsocketServer) handleHostInactivityCheck() {
 		for _, hostId := range sensorHosts {
 			seconds, err := wss.sensorHostPool.GetHostSecondsSinceLastActivity(hostId)
 			if err != nil {
-				// TODO: Error count bump here?
 				log.Instance.Debugf("Failed to perform inactivity time validation for host: %s", hostId)
+				wss.sensorHostPool.BumpHostErrorCount(hostId)
 				continue
 			}
 
@@ -311,7 +298,6 @@ func (wss *WebsocketServer) handleHostInactivityCheck() {
 }
 
 func (wss *WebsocketServer) handleHostErrorCountCheck() {
-	// TODO: Fine-tune the time of this task
 	for range time.Tick(time.Minute * time.Duration(timeOffsetErrorCountCheckMinutes)) {
 		dashboardHosts := wss.dashboardHostPool.GetAllHostIds()
 		log.Instance.Debugf("About to check error count for: %d dashboard hosts", len(dashboardHosts))
@@ -319,7 +305,6 @@ func (wss *WebsocketServer) handleHostErrorCountCheck() {
 		for _, hostId := range dashboardHosts {
 			errorCount, err := wss.dashboardHostPool.GetHostErrorCount(hostId)
 			if err != nil {
-				// TODO: Error count bump here?
 				log.Instance.Debugf("Failed to perform error count validation for host: %s", hostId)
 				continue
 			}
@@ -343,7 +328,6 @@ func (wss *WebsocketServer) handleHostErrorCountCheck() {
 		for _, hostId := range sensorHosts {
 			errorCount, err := wss.sensorHostPool.GetHostErrorCount(hostId)
 			if err != nil {
-				// TODO: Error count bump here?
 				log.Instance.Debugf("Failed to perform error count validation for host: %s", hostId)
 				continue
 			}
