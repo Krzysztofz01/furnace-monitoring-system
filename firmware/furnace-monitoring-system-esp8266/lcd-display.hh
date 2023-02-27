@@ -1,6 +1,7 @@
 #ifndef LCD_DISPLAY_HH
 #define LCD_DISPLAY_HH
 
+#include <Arduino.h>
 #include <LiquidCrystal.h>
 #include <stdexcept>
 

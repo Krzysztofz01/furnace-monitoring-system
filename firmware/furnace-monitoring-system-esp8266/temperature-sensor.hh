@@ -1,6 +1,7 @@
 #ifndef TEMPERATURE_SENSOR_HH
 #define TEMPERATURE_SENSOR_HH
 
+#include <Arduino.h>
 #include <Onewire.h>
 #include <stdexcept>
 

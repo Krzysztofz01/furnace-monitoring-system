@@ -95,7 +95,7 @@ TemperatureSensorResult TemperatureSensor::readTemperature() {
     mpOneWireSensorDevice->write(0x44, 1);
 
     // TODO: This value can be fine-tuned down to 750ms?
-    delay(1000);
+    delay(500);
 
     byte present = 0;
     present = mpOneWireSensorDevice->reset();
