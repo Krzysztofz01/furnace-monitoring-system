@@ -1,5 +1,5 @@
 import { Chart } from "chart.js";
-import { intervalToDuration } from "date-fns";
+import { format } from "date-fns";
 import { Measurement } from "./measurement";
 
 const maxMeasurementCount = 25
@@ -105,22 +105,6 @@ function PushMultipleLabelsIntoChart(chart: Chart, values: Array<string>): void 
 }
 
 function GetTimestampLabel(date: Date): string {
-    const duration = intervalToDuration({
-        start: new Date(date),
-        end: new Date()
-    });
-
-    if (duration.minutes == 0) {
-        return `${duration.seconds} seconds ago`;
-    }
-
-    if (duration.hours == 0) {
-        return `${duration.minutes} minutes ago`;
-    }
-
-    if (duration.days == 0) {
-        return `${duration.hours} hours ago`;
-    }
-
-    return "";
+    const measurementDate = new Date(date)
+    return format(measurementDate, "HH:mm:ss")
 }
