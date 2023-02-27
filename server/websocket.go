@@ -11,6 +11,7 @@ import (
 	"github.com/Krzysztofz01/furnace-monitoring-system/protocol"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/labstack/echo/v4"
 )
 
 const (
@@ -140,38 +141,43 @@ func (wss *WebsocketServer) UpgradeSensorHostConnection(r *http.Request, w http.
 	}
 }
 
-func (wss *WebsocketServer) UpgradeDashboardHostConnection(r *http.Request, w http.ResponseWriter) {
-	socket, err := upgrader.Upgrade(w, r, nil)
+func (wss *WebsocketServer) UpgradeDashboardHostConnection(c echo.Context) error {
+	socket, err := upgrader.Upgrade(c.Response().Writer, c.Request(), nil)
 	if err != nil {
 		log.Instance.Debugf("Failed to upgrade the connection to websocket communication: %s\n", err)
-		return
+		return c.NoContent(http.StatusBadRequest)
 	}
 
 	_, connectionPayloadBuffer, err := socket.ReadMessage()
 	if err != nil {
 		log.Instance.Debugf("Failed to retrieve the connection payload event message from the socket: %s\n", err)
-		return
+		return c.NoContent(http.StatusBadRequest)
 	}
 
 	connectionEventPayload, err := protocol.ParseEventPayloadFromBuffer(connectionPayloadBuffer)
 	if err != nil {
 		log.Instance.Debugf("Failed to parse the connection payload event: %s\n", err)
-		return
+		return c.NoContent(http.StatusBadRequest)
 	} else {
 		if connectionEventPayload.GetEventType() != protocol.DashboardConnectedEvent {
 			log.Instance.Debugf("The retrieved event payload is not of the expected type: %d\n", connectionEventPayload.GetEventType())
-			return
+			return c.NoContent(http.StatusBadRequest)
 		}
 	}
 
 	hostId := connectionEventPayload.GetHostId()
 	if err := wss.dashboardHostPool.InsertHost(hostId, socket); err != nil {
 		log.Instance.Debugf("Failed to store the host connection: %s\n", err)
-		return
+		return c.NoContent(http.StatusConflict)
 	}
 
 	log.Instance.Infof("Dashboard host connection upgraded for host: %s with address: %s", hostId, socket.RemoteAddr().String())
 
+	go wss.handleDashboardHostConnection(hostId)
+	return c.NoContent(http.StatusOK)
+}
+
+func (wss *WebsocketServer) handleDashboardHostConnection(hostId uuid.UUID) {
 	defer func() {
 		if deleted, err := wss.dashboardHostPool.RemoveHost(hostId); !deleted {
 			log.Instance.Debug("The dashboard host has not been deleted, but it might be deleted previously\n")

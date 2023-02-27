@@ -45,10 +45,7 @@ func main() {
 		return nil
 	})
 
-	e.GET("socket/dashboard", func(c echo.Context) error {
-		server.Instance.UpgradeDashboardHostConnection(c.Request(), c.Response().Writer)
-		return nil
-	})
+	e.GET("socket/dashboard", server.Instance.UpgradeDashboardHostConnection)
 
 	log.Instance.Fatal(e.Start(":5000"))
 }
