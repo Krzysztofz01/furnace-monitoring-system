@@ -39,12 +39,7 @@ func main() {
 	e.Use(view.EmbeddedWebApp())
 
 	e.GET("api/measurements", handler.HandleLatestMeasurements)
-
-	e.GET("socket/sensor", func(c echo.Context) error {
-		server.Instance.UpgradeSensorHostConnection(c.Request(), c.Response().Writer)
-		return nil
-	})
-
+	e.GET("socket/sensor", server.Instance.UpgradeSensorHostConnection)
 	e.GET("socket/dashboard", server.Instance.UpgradeDashboardHostConnection)
 
 	log.Instance.Fatal(e.Start(":5000"))

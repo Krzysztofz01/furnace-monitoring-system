@@ -49,27 +49,30 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 }
 
-func (wss *WebsocketServer) UpgradeSensorHostConnection(r *http.Request, w http.ResponseWriter) {
-	socket, err := upgrader.Upgrade(w, r, nil)
+func (wss *WebsocketServer) UpgradeSensorHostConnection(c echo.Context) error {
+	socket, err := upgrader.Upgrade(c.Response().Writer, c.Request(), nil)
 	if err != nil {
 		log.Instance.Debugf("Failed to upgrade the connection to websocket communication: %s\n", err)
-		return
+		return nil
 	}
 
 	_, connectionPayloadBuffer, err := socket.ReadMessage()
 	if err != nil {
 		log.Instance.Debugf("Failed to retrieve the connection payload event message from the socket: %s\n", err)
-		return
+		socket.Close()
+		return nil
 	}
 
 	connectionEventPayload, err := protocol.ParseEventPayloadFromBuffer(connectionPayloadBuffer)
 	if err != nil {
 		log.Instance.Debugf("Failed to parse the connection payload event: %s\n", err)
-		return
+		socket.Close()
+		return nil
 	} else {
 		if connectionEventPayload.GetEventType() != protocol.SensorConnectedEvent {
 			log.Instance.Debugf("The retrieved event payload is not of the expected type: %d\n", connectionEventPayload.GetEventType())
-			return
+			socket.Close()
+			return nil
 		}
 	}
 
@@ -77,16 +80,22 @@ func (wss *WebsocketServer) UpgradeSensorHostConnection(r *http.Request, w http.
 	if !wss.ValidateSensorHostId(hostId) {
 		log.Instance.Debug("The host with the given id is not permited to be a sensor\n")
 		socket.Close()
-		return
+		return nil
 	}
 
 	if err := wss.sensorHostPool.InsertHost(hostId, socket); err != nil {
 		log.Instance.Debugf("Failed to store the host connection: %s\n", err)
-		return
+		socket.Close()
+		return nil
 	}
 
 	log.Instance.Infof("Sensor host connection upgraded for host: %s with address: %s\n", hostId, socket.RemoteAddr().String())
 
+	go wss.handleSensorHostConnection(hostId)
+	return nil
+}
+
+func (wss *WebsocketServer) handleSensorHostConnection(hostId uuid.UUID) {
 	defer func() {
 		if deleted, err := wss.sensorHostPool.RemoveHost(hostId); !deleted {
 			log.Instance.Debug("The sensor host has not been deleted, but it might be deleted previously\n")
@@ -145,36 +154,40 @@ func (wss *WebsocketServer) UpgradeDashboardHostConnection(c echo.Context) error
 	socket, err := upgrader.Upgrade(c.Response().Writer, c.Request(), nil)
 	if err != nil {
 		log.Instance.Debugf("Failed to upgrade the connection to websocket communication: %s\n", err)
-		return c.NoContent(http.StatusBadRequest)
+		return nil
 	}
 
 	_, connectionPayloadBuffer, err := socket.ReadMessage()
 	if err != nil {
 		log.Instance.Debugf("Failed to retrieve the connection payload event message from the socket: %s\n", err)
-		return c.NoContent(http.StatusBadRequest)
+		socket.Close()
+		return nil
 	}
 
 	connectionEventPayload, err := protocol.ParseEventPayloadFromBuffer(connectionPayloadBuffer)
 	if err != nil {
 		log.Instance.Debugf("Failed to parse the connection payload event: %s\n", err)
-		return c.NoContent(http.StatusBadRequest)
+		socket.Close()
+		return nil
 	} else {
 		if connectionEventPayload.GetEventType() != protocol.DashboardConnectedEvent {
 			log.Instance.Debugf("The retrieved event payload is not of the expected type: %d\n", connectionEventPayload.GetEventType())
-			return c.NoContent(http.StatusBadRequest)
+			socket.Close()
+			return nil
 		}
 	}
 
 	hostId := connectionEventPayload.GetHostId()
 	if err := wss.dashboardHostPool.InsertHost(hostId, socket); err != nil {
 		log.Instance.Debugf("Failed to store the host connection: %s\n", err)
-		return c.NoContent(http.StatusConflict)
+		socket.Close()
+		return nil
 	}
 
 	log.Instance.Infof("Dashboard host connection upgraded for host: %s with address: %s", hostId, socket.RemoteAddr().String())
 
 	go wss.handleDashboardHostConnection(hostId)
-	return c.NoContent(http.StatusOK)
+	return nil
 }
 
 func (wss *WebsocketServer) handleDashboardHostConnection(hostId uuid.UUID) {
