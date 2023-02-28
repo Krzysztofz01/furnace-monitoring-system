@@ -1,63 +1,25 @@
 #include <OneWire.h>
-#include <LiquidCrystal.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
-#include <Hash.h>
-#include <WebSocketsClient.h>
 
 #include "lcd-display.hh"
 #include "temperature-sensor.hh"
-#include "payload-builder.hh"
 #include "config.hh"
+#include "server-handler.hh"
+#include "measurement.hh"
 
-// TODO: Define all const values here
-
-LcdDisplay* p_lcdDisplay = nullptr;
-
-TemperatureSensor* p_sensor1 = nullptr;
-TemperatureSensor* p_sensor2 = nullptr;
-
-ESP8266WiFiMulti WiFiMulti;
-WebSocketsClient webSocket;
-
-PayloadBuilder* p_payloadBuilder = nullptr;
+// #define WEBSOCKETS_TCP_TIMEOUT (15000)
 
 const int LCD_WIDTH = 16;
 const int LCD_HEIGHT = 2;
+const int MEASUREMENT_SENDING_INTERVAL_SECONDS = 10;
 
-bool socketIsConnected = false;
-bool socketIsEstablished = false;
+static unsigned long s_lastCycle;
 
-void handleWebSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
-  hexdump(payload, length);
-  
-  switch (type) {
-    case WStype_DISCONNECTED: {
-      Serial.println("Disconnected");
-      socketIsConnected = false;
-      socketIsEstablished = false;
-      break;      
-    }
-    case WStype_CONNECTED: {
-      Serial.println("Connected");
-      socketIsConnected = true;
-      socketIsEstablished = false;
-      break;
-    }
-    default: {
-      Serial.println(type);
-      break;
-    }
-  }
-}
+LcdDisplay* p_lcdDisplay = nullptr;
+ServerHandler* p_serverHandler = nullptr;
+TemperatureSensor* p_sensor1 = nullptr;
+TemperatureSensor* p_sensor2 = nullptr;
 
-void print_temperature(int sensorIdentifier, float sensorTemperature) {
-  char* printBuffer = new char[LCD_WIDTH];
-  snprintf(printBuffer, LCD_WIDTH, "[%d] Temp: %.2f C", sensorIdentifier, sensorTemperature);
-
-  p_lcdDisplay->writeLine(sensorIdentifier, printBuffer);
-  delete[] printBuffer;
-}
+void print_temperature(int sensorIdentifier, float sensorTemperature);
 
 void setup(void) {
   Serial.begin(9600);
@@ -70,96 +32,63 @@ void setup(void) {
       D2,
       D5, D6, D7, D8);
 
+    p_serverHandler = new ServerHandler(
+      FMS_HOSTID,
+      FMS_NETWORK_SSID,
+      FMS_NETWORK_PASSWORD,
+      FMS_SERVER_ADDRESS,
+      FMS_SERVER_PORT);
+
     p_sensor1 = new TemperatureSensor(0, D3);
     p_sensor2 = new TemperatureSensor(1, D4);
-
-
-    WiFiMulti.addAP(FMS_NETWORK_SSID.c_str(), FMS_NETWORK_PASSWORD.c_str());
-
-	  //WiFi.disconnect();
-	  while(WiFiMulti.run() != WL_CONNECTED) {
-		  Serial.println("Connecting to the network...");
-      delay(200);
-	  }
-
-
-
-    // WiFi.begin(FMS_NETWORK_SSID, FMS_NETWORK_PASSWORD);
-    // while (WiFi.status() != WL_CONNECTED) {
-    //   Serial.println("Connecting to the network...");
-    //   delay(200);
-    // }
-    Serial.println("Wifi connected");
-
-    p_payloadBuilder = new PayloadBuilder(FMS_HOSTID);
-
-    webSocket.begin(FMS_SERVER_ADDRESS, FMS_SERVER_PORT, "/socket/sensor");
-    webSocket.onEvent(handleWebSocketEvent);
-    webSocket.setReconnectInterval(5000);
-    webSocket.enableHeartbeat(15000, 3000, 2);
-
   } catch (std::exception& ex) {
     // TODO: Better logging
     Serial.println(ex.what());
   }
 }
 
-static unsigned long last_run;
-
 void loop(void) {
   try {
-    Serial.println("Runing websocket loop");
-    unsigned long now = millis();
-    webSocket.loop();
-    Serial.println("After websocket loop");
+    unsigned long currentCycle = millis();
+    p_serverHandler->handleCycle();
 
-    if (now - last_run < 6000) return;
+    if (currentCycle - s_lastCycle < MEASUREMENT_SENDING_INTERVAL_SECONDS * 1000) return;
 
-    last_run = millis();  
-
-    Serial.println("Program loop start");
-    float temperatureOne = 0.0;
-    float temperatureTwo = 0.0;
-    float temperatureThree = 0.0;
-    int airContamination = 0;
+    Measurement measurement;
 
     auto resultSensor1 = p_sensor1->readTemperature();
     if (resultSensor1.isSuccess()) {
-      temperatureOne = resultSensor1.getTemperature();
-      print_temperature(p_sensor1->getIdentifier(), resultSensor1.getTemperature());
+      float temperature = resultSensor1.getTemperature();
+
+      measurement.TemperatureSensorOne = temperature;
+      print_temperature(p_sensor1->getIdentifier(), temperature);
     } else {
       // TODO: Log error
     }
 
     auto resultSensor2 = p_sensor2->readTemperature();
     if (resultSensor2.isSuccess()) {
-      temperatureTwo = resultSensor2.getTemperature();
-      print_temperature(p_sensor2->getIdentifier(), resultSensor2.getTemperature());
+      float temperature = resultSensor2.getTemperature();
+
+      measurement.TemperatureSensorTwo = temperature;
+      print_temperature(p_sensor2->getIdentifier(), temperature);
     } else {
       // TODO: Log error
     }
 
+    p_serverHandler->sendMeasurement(measurement);
+    s_lastCycle = millis();
     
-    if (socketIsConnected && socketIsEstablished) {
-      Serial.println("Connected and established");
-      // TODO: Add error counting for auto restart
-      String payload = p_payloadBuilder->BuildMeasurementPayload(temperatureOne, temperatureTwo, temperatureThree, airContamination);
-      if (webSocket.sendTXT(payload)) {
-        Serial.println("Sending measurement payload returned true");
-      } else {
-        Serial.println("Sending measurement payload returned false");
-      }
-    } else if (socketIsConnected && !socketIsEstablished) {
-      String payload = p_payloadBuilder->BuildConnectedPayload();
-      if (webSocket.sendTXT(payload)) {
-        Serial.println("Sending connected payload returned true");
-        socketIsEstablished = true;
-      } else {
-        Serial.println("Sending connected payload returned false");
-      }
-    }
   } catch (std::exception& ex) {
     // TODO: Better logging
     Serial.println(ex.what());
   }
+}
+
+void print_temperature(int sensorIdentifier, float sensorTemperature) {
+  char* printBuffer = new char[LCD_WIDTH];
+  snprintf(printBuffer, LCD_WIDTH, "[%d] Temp: %.2f C", sensorIdentifier, sensorTemperature);
+
+  p_lcdDisplay->writeLine(sensorIdentifier, printBuffer);
+  delete[] printBuffer;
 }
