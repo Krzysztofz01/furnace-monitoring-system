@@ -4,18 +4,23 @@
 #include <Arduino.h>
 #include <stdexcept>
 
+#include "measurement.hh"
+
 class PayloadBuilder {
 public:
     PayloadBuilder(String hostId);
 
-    String BuildConnectedPayload();
-    String BuildMeasurementPayload(float tempOne, float tempTwo, float tempThree, int airContamination);
+    String buildConnectedPayload();
+    String buildMeasurementPayload(Measurement measurement);
 
     ~PayloadBuilder() {}
 private:
     PayloadBuilder() {}
     
     const char mPayloadSeparator = ';';
+    const int mConnectedEventPayloadType = 1;
+    const int mMeasurementEventPayloadType = 3;
+    
     String mHostId;
 };
 
