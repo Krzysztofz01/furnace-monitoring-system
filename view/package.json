@@ -1,0 +1,24 @@
+{
+  "name": "furnace-monitoring-system-ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.1",
+    "autoprefixer": "^10.4.13",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.2.7",
+    "typescript": "^4.9.3",
+    "vite": "^4.1.0"
+  },
+  "dependencies": {
+    "chart.js": "^4.2.1",
+    "date-fns": "^2.29.3",
+    "uuid": "^9.0.0"
+  }
+}
