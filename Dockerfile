@@ -6,16 +6,16 @@ WORKDIR /view
 RUN yarn
 RUN yarn build
 
-# Server build step (arm64v8/golang:latest)
+# Server build step
 FROM golang:latest as server-build
 RUN mkdir /furnace-monitoring-system
 ADD . /furnace-monitoring-system
 COPY --from=view-build /view/dist /furnace-monitoring-system/view/dist
 WORKDIR /furnace-monitoring-system
 RUN go mod download
-RUN GOOS=linux GOARCH=arm64 go build -o main
+RUN GOOS=linux go build -o main
 
-# Final publish (arm64v8/ubuntu:latest)
+# Final publish
 FROM ubuntu:latest as publish
 RUN mkdir /fms
 COPY --from=server-build /furnace-monitoring-system/main /fms/main
@@ -24,4 +24,4 @@ WORKDIR /fms
 RUN mkdir db
 RUN mkdir log
 EXPOSE 5000
-CMD ["/fms/main"]
+ENTRYPOINT ["/fms/main"]
