@@ -84,9 +84,19 @@ func (wss *WebsocketServer) UpgradeSensorHostConnection(c echo.Context) error {
 	}
 
 	if err := wss.sensorHostPool.InsertHost(hostId, socket); err != nil {
-		log.Instance.Debugf("Failed to store the host connection: %s\n", err)
-		socket.Close()
-		return nil
+		// NOTE: Temporary workaround for slow sensor auto disposal
+		log.Instance.Debugf("Host with given id is alredy stored in the hostpool, forcing the new host connection: %s\n", err)
+		if removed, _ := wss.sensorHostPool.RemoveHost(hostId); removed {
+			if err := wss.sensorHostPool.InsertHost(hostId, socket); err != nil {
+				log.Instance.Debug("Failed to force insert sensor host after the old one was removed")
+				socket.Close()
+				return nil
+			}
+		} else {
+			log.Instance.Debug("Failed to force remove sensor host")
+			socket.Close()
+			return nil
+		}
 	}
 
 	log.Instance.Infof("Sensor host connection upgraded for host: %s with address: %s\n", hostId, socket.RemoteAddr().String())
