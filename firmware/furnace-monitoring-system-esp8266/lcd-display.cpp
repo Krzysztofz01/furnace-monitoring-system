@@ -15,29 +15,29 @@ LcdDisplay::LcdDisplay(const int displayWidth, const int displayHeight, const in
 
     mDisplayHeight = displayHeight;
 
-    if (pinRegisterSelect <= 0) {
-        throw std::runtime_error("LcdDisplay: Invalid register selection pin specified.");
-    }
+    // if (pinRegisterSelect <= 0) {
+    //     throw std::runtime_error("LcdDisplay: Invalid register selection pin specified.");
+    // }
 
-    if (pinEnable <= 0) {
-        throw std::runtime_error("LcdDisplay: Invalid display enable pin specified.");
-    }
+    // if (pinEnable <= 0) {
+    //     throw std::runtime_error("LcdDisplay: Invalid display enable pin specified.");
+    // }
 
-    if (pinDataBus1 <= 0) {
-        throw std::runtime_error("LcdDisplay: Invalid data bus 1 pin specified.");
-    }
+    // if (pinDataBus1 <= 0) {
+    //     throw std::runtime_error("LcdDisplay: Invalid data bus 1 pin specified.");
+    // }
 
-    if (pinDataBus2 <= 0) {
-        throw std::runtime_error("LcdDisplay: Invalid data bus 2 pin specified.");
-    }
+    //if (pinDataBus2 <= 0) {
+    //    throw std::runtime_error("LcdDisplay: Invalid data bus 2 pin specified.");
+    //S}
 
-    if (pinDataBus3 <= 0) {
-        throw std::runtime_error("LcdDisplay: Invalid data bus 3 pin specified.");
-    }
+    // if (pinDataBus3 <= 0) {
+    //     throw std::runtime_error("LcdDisplay: Invalid data bus 3 pin specified.");
+    // }
 
-    if (pinDataBus4 <= 0) {
-        throw std::runtime_error("LcdDisplay: Invalid data bus 4 pin specified.");
-    }
+    // if (pinDataBus4 <= 0) {
+    //     throw std::runtime_error("LcdDisplay: Invalid data bus 4 pin specified.");
+    // }
 
     mpLcdDisplayDevice = new LiquidCrystal(pinRegisterSelect, pinEnable, pinDataBus1, pinDataBus2, pinDataBus3, pinDataBus4);
     mpLcdDisplayDevice->begin(mDisplayWidth, mDisplayHeight);
