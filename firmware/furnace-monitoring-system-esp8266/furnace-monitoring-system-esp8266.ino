@@ -30,8 +30,12 @@ void setup(void) {
       LCD_HEIGHT,
       D1,
       D2,
-      D5, D6, D7, D8);
+      D3, D4, D5, D6);
+  } catch (std::exception& ex) {
+    Serial.println("Lcd screen initialization failed.");
+  }
 
+  try {
     p_serverHandler = new ServerHandler(
       FMS_HOSTID,
       FMS_NETWORK_SSID,
@@ -39,8 +43,8 @@ void setup(void) {
       FMS_SERVER_ADDRESS,
       FMS_SERVER_PORT);
 
-    p_sensor1 = new TemperatureSensor(0, D3);
-    p_sensor2 = new TemperatureSensor(1, D4);
+    p_sensor1 = new TemperatureSensor(0, D0);
+    p_sensor2 = new TemperatureSensor(1, D7);
   } catch (std::exception& ex) {
     // TODO: Better logging
     Serial.println(ex.what());
@@ -49,6 +53,7 @@ void setup(void) {
 
 void loop(void) {
   try {
+    
     unsigned long currentCycle = millis();
     p_serverHandler->handleCycle();
 
@@ -63,6 +68,7 @@ void loop(void) {
       measurement.TemperatureSensorOne = temperature;
       print_temperature(p_sensor1->getIdentifier(), temperature);
     } else {
+      Serial.println(resultSensor1.getFailureMessage());
       // TODO: Log error
     }
 
@@ -86,6 +92,8 @@ void loop(void) {
 }
 
 void print_temperature(int sensorIdentifier, float sensorTemperature) {
+  if (p_lcdDisplay == nullptr) return;
+  
   char* printBuffer = new char[LCD_WIDTH];
   snprintf(printBuffer, LCD_WIDTH, "[%d] Temp: %.2f C", sensorIdentifier, sensorTemperature);
 
