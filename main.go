@@ -39,6 +39,7 @@ func main() {
 	e.Use(view.EmbeddedWebApp())
 
 	e.GET("api/measurements", handler.HandleLatestMeasurements)
+	e.GET("api/sensor/config", handler.HandleSensorConfig)
 	e.GET("socket/sensor", server.Instance.UpgradeSensorHostConnection)
 	e.GET("socket/dashboard", server.Instance.UpgradeDashboardHostConnection)
 
