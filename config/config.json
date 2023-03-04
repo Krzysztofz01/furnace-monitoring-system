@@ -1,4 +1,15 @@
 {
     "verbose-logging": true,
-    "sensor-host-ids": ["dc0b9f31-d646-488d-9a7d-0ebf640d8b10"]
+    "sensor-host-ids": [],
+    "sensor-gpio-config": {
+    "temp-1": "",
+	"temp-2": "",
+	"temp-3": "",
+	"lcd-rs": "",
+	"lcd-e": "",
+	"lcd-d4": "",
+	"lcd-d5": "",
+	"lcd-d6": "",
+	"lcd-d7": ""
+    }
 }

@@ -7,8 +7,21 @@ import (
 )
 
 type Config struct {
-	VerboseLogging bool     `mapstructure:"verbose-logging"`
-	SensorHostIds  []string `mapstructure:"sensor-host-ids"`
+	VerboseLogging   bool             `mapstructure:"verbose-logging"`
+	SensorHostIds    []string         `mapstructure:"sensor-host-ids"`
+	SensorGpioConfig SensorGpioConfig `mapstructure:"sensor-gpio-config"`
+}
+
+type SensorGpioConfig struct {
+	TempSensorData1   string `mapstructure:"temp-1"`
+	TempSensorData2   string `mapstructure:"temp-2"`
+	TempSensorData3   string `mapstructure:"temp-3"`
+	LcdScreenRs       string `mapstructure:"lcd-rs"`
+	LcdScreenE        string `mapstructure:"lcd-e"`
+	LcdScreenDataBus4 string `mapstructure:"lcd-d4"`
+	LcdScreenDataBus5 string `mapstructure:"lcd-d5"`
+	LcdScreenDataBus6 string `mapstructure:"lcd-d6"`
+	LcdScreenDataBus7 string `mapstructure:"lcd-d7"`
 }
 
 const (
