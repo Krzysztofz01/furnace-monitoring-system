@@ -5,6 +5,7 @@
 #include "config.hh"
 #include "server-handler.hh"
 #include "measurement.hh"
+#include "sensor-config.hh"
 
 // #define WEBSOCKETS_TCP_TIMEOUT (15000)
 
@@ -13,6 +14,8 @@ const int LCD_HEIGHT = 2;
 const int MEASUREMENT_SENDING_INTERVAL_SECONDS = 10;
 
 static unsigned long s_lastCycle;
+static bool s_initialized;
+static SensorConfig s_sensorConfig;
 
 LcdDisplay* p_lcdDisplay = nullptr;
 ServerHandler* p_serverHandler = nullptr;
@@ -22,19 +25,10 @@ TemperatureSensor* p_sensor2 = nullptr;
 void print_temperature(int sensorIdentifier, float sensorTemperature);
 
 void setup(void) {
+  s_initialized = false;
+
   Serial.begin(9600);
   
-  try {
-    p_lcdDisplay = new LcdDisplay(
-      LCD_WIDTH,
-      LCD_HEIGHT,
-      D1,
-      D2,
-      D3, D4, D5, D6);
-  } catch (std::exception& ex) {
-    Serial.println("Lcd screen initialization failed.");
-  }
-
   try {
     p_serverHandler = new ServerHandler(
       FMS_HOSTID,
@@ -42,18 +36,51 @@ void setup(void) {
       FMS_NETWORK_PASSWORD,
       FMS_SERVER_ADDRESS,
       FMS_SERVER_PORT);
-
-    p_sensor1 = new TemperatureSensor(0, D0);
-    p_sensor2 = new TemperatureSensor(1, D7);
   } catch (std::exception& ex) {
-    // TODO: Better logging
-    Serial.println(ex.what());
+    Serial.println("Failed to establish connection to the network or server");
+    return;
   }
+
+  try {
+    s_sensorConfig = p_serverHandler->pullSensorConfig();
+  } catch (std::exception& ex) {
+    Serial.println("Failed to pull the configuration from the server");
+    return;
+  }
+
+  try {
+    p_lcdDisplay = new LcdDisplay(
+      LCD_WIDTH,
+      LCD_HEIGHT,
+      s_sensorConfig.rs,
+      s_sensorConfig.e,
+      s_sensorConfig.d4,
+      s_sensorConfig.d5,
+      s_sensorConfig.d6,
+      s_sensorConfig.d7);
+  } catch (std::exception& ex) {
+    Serial.println("Failed to initialize the lcd screen");
+    return;
+  }
+
+  try {
+    p_sensor1 = new TemperatureSensor(0, s_sensorConfig.temp1);
+    p_sensor2 = new TemperatureSensor(1, s_sensorConfig.temp2);
+  } catch (std::exception& ex) {
+    Serial.println("Failed to initialize the temperature sensors");
+    return;
+  }
+
+  s_initialized = true;
 }
 
 void loop(void) {
   try {
-    
+    if (!s_initialized) {
+      delay(60000);
+      return;
+    }
+
     unsigned long currentCycle = millis();
     p_serverHandler->handleCycle();
 
