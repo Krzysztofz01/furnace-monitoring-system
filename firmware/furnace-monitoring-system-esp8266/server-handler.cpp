@@ -40,6 +40,32 @@ void ServerHandler::handleCycle() {
     }
 }
 
+SensorConfig ServerHandler::pullSensorConfig() {
+    Serial.println("Trying to pull the sensor configuration from the server...");
+    
+    if (mpHttpClient == nullptr) {
+        mpHttpClient = new HTTPClient();
+    }
+
+    auto requestAddress = FMS_SERVER_ADDRESS + mServerSensorConfigEndpoint;
+
+    WiFiClient client;
+    mpHttpClient->begin(client, requestAddress);
+    int requestResponseCode = mpHttpClient->GET();
+    if (requestResponseCode != 200) {
+        Serial.println("Failed to pull the configuration from the server.");
+        throw std::runtime_error("ServerHandler: Failed to make a sensor config request to the server");
+    }
+
+    Serial.println("Configuration pulled from the server successful.");
+
+    String responsePayload = mpHttpClient->getString();
+    SensorConfig config = SensorConfig::parseFromJson(responsePayload);
+
+    mpHttpClient->end();
+    return config;
+}
+
 void ServerHandler::sendMeasurement(Measurement measurement) {
     // TODO: Measurement validation
     if (smIsNetworkConnectionEstablished && smIsProtocolConnectionEstablished) {

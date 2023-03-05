@@ -4,9 +4,12 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
+#include <ESP8266HTTPClient.h>
 #include <WebSocketsClient.h>
 
 #include "measurement.hh"
+#include "config.hh"
+#include "sensor-config.hh"
 #include "payload-builder.hh"
 
 class ServerHandler {
@@ -14,6 +17,7 @@ public:
     ServerHandler(const String hostId, const String networkSsid, const String networkPassword, const String serverAddress, const int serverPort);
 
     void handleCycle();
+    SensorConfig pullSensorConfig();
     void sendMeasurement(Measurement measurement);
     bool isErrorCountExceeded();
 
@@ -40,6 +44,7 @@ private:
     }
 
     const String mServerSensorSocketEndpoint = "/socket/sensor"; 
+    const String mServerSensorConfigEndpoint = "/api/sensor/config";
     const int mReconnectionInterval = 5000;
     const int mHeartbeatPingTimeout = 15000;
     const int mHeartbeatPongTimeout = 3000;
@@ -47,6 +52,7 @@ private:
     const int mMaxErrorCount = 5;
 
     ESP8266WiFiMulti* mpWifi;
+    HTTPClient* mpHttpClient;
     WebSocketsClient* mpWebSocket;
     PayloadBuilder* mpPayloadBuilder;
 
