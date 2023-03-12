@@ -9,15 +9,15 @@ import (
 )
 
 type SensorConfig struct {
-	TemperatureSensorOneDataGpio   int
-	TemperatureSensorTwoDataGpio   int
-	TemperatureSensorThreeDataGpio int
-	LcdScreenRsGpio                int
-	LcdScreenEGpio                 int
-	LcdScreenDataBus4Gpio          int
-	LcdScreenDataBus5Gpio          int
-	LcdScreenDataBus6Gpio          int
-	LcdScreenDataBus7Gpio          int
+	TemperatureSensorOneDataGpio   int `json:"temp1"`
+	TemperatureSensorTwoDataGpio   int `json:"temp2"`
+	TemperatureSensorThreeDataGpio int `json:"temp3"`
+	LcdScreenRsGpio                int `json:"rs"`
+	LcdScreenEGpio                 int `json:"e"`
+	LcdScreenDataBus4Gpio          int `json:"d4"`
+	LcdScreenDataBus5Gpio          int `json:"d5"`
+	LcdScreenDataBus6Gpio          int `json:"d6"`
+	LcdScreenDataBus7Gpio          int `json:"d7"`
 }
 
 func CreateSensorConfigFromConfigSection(c config.SensorGpioConfig) (*SensorConfig, error) {
