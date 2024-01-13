@@ -1,11 +1,20 @@
-const server = import.meta.env.VITE_SERVER as string
+export function GetMeasurementsServerEndpoint(): string | null {
+    const server = window.location.host;
+    if (!server) {
+        console.error("Can not access the server host address");
+        return null;
+    }
 
-export function GetMeasurementsServerEndpoint(): string {
-    if (!server) console.error("Can not access the server host address")
+    
     return `http://${server}/api/measurements`
 }
 
-export function GetDashboardSocketServerEndpoint(): string {
-    if (!server) console.error("Can not access the server host address")
+export function GetDashboardSocketServerEndpoint(): string | null {
+    const server = window.location.host;
+    if (!server) {
+        console.error("Can not access the server host address");
+        return null;
+    }
+
     return `ws://${server}/socket/dashboard`
 }
