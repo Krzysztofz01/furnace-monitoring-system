@@ -1,27 +1,24 @@
 # Embedded view build step
 FROM node:alpine as view-build
-RUN mkdir /view
-COPY /view /view
-WORKDIR /view
-RUN yarn
-RUN yarn build
+RUN npm install -g @go-task/cli
+RUN mkdir /furnace-monitoring-system
+COPY . /furnace-monitoring-system
+WORKDIR /furnace-monitoring-system
+RUN task build:frontend
 
 # Server build step
 FROM golang:latest as server-build
+RUN go install github.com/go-task/task/v3/cmd/task@latest
 RUN mkdir /furnace-monitoring-system
 ADD . /furnace-monitoring-system
-COPY --from=view-build /view/dist /furnace-monitoring-system/view/dist
+COPY --from=view-build /furnace-monitoring-system/view/dist /furnace-monitoring-system/view/dist
 WORKDIR /furnace-monitoring-system
-RUN go mod download
-RUN GOOS=linux go build -o main
+RUN task build:backend
 
 # Final publish
 FROM ubuntu:latest as publish
 RUN mkdir /fms
-COPY --from=server-build /furnace-monitoring-system/main /fms/main
-COPY config/config.json /fms/config/config.json
+COPY --from=server-build /furnace-monitoring-system/bin /fms
 WORKDIR /fms
-RUN mkdir db
-RUN mkdir log
 EXPOSE 5000
-ENTRYPOINT ["/fms/main"]
+ENTRYPOINT ["/fms/furnace-monitoring-system-server"]
