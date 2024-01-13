@@ -10,6 +10,7 @@ import (
 type Config struct {
 	VerboseLogging bool     `mapstructure:"verbose-logging"`
 	SensorHostIds  []string `mapstructure:"sensor-host-ids"`
+	Host           string   `mapstructure:"host"`
 }
 
 const (
@@ -31,6 +32,7 @@ func CreateConfig() error {
 
 	viper.SetDefault("verbose-logging", false)
 	viper.SetDefault("sensor-host-ids", []string{})
+	viper.SetDefault("host", ":5000")
 	viper.SafeWriteConfig()
 
 	if err := viper.ReadInConfig(); err != nil {

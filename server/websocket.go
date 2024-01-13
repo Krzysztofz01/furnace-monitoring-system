@@ -21,6 +21,7 @@ const (
 	maxErrorCount                    int     = 5
 )
 
+// TODO: Add support for serve closing
 type WebsocketServer struct {
 	dashboardHostPool *HostPool
 	sensorHostPool    *HostPool
@@ -127,7 +128,7 @@ func (wss *WebsocketServer) handleSensorHostConnection(hostId uuid.UUID) {
 
 		eventPayload, err := protocol.ParseEventPayloadFromBuffer(eventPayloadBuffer)
 		if err != nil {
-			log.Instance.Debugf("server: failed to parse the received event payload: %w", err)
+			log.Instance.Debugf("server: failed to parse the received event payload: %s", err)
 			wss.sensorHostPool.BumpHostErrorCount(hostId)
 			continue
 		}
@@ -222,7 +223,7 @@ func (wss *WebsocketServer) handleDashboardHostConnection(hostId uuid.UUID) {
 
 		eventPayload, err := protocol.ParseEventPayloadFromBuffer(eventPayloadBuffer)
 		if err != nil {
-			log.Instance.Debugf("server: failed to parse the received event payload: %w", err)
+			log.Instance.Debugf("server: failed to parse the received event payload: %s", err)
 			wss.dashboardHostPool.BumpHostErrorCount(hostId)
 			continue
 		}
@@ -258,7 +259,7 @@ func (wss *WebsocketServer) handleSensorMeasurements() {
 		}
 
 		if err := db.InsertMeasurement(db.Instance, measurement); err != nil {
-			log.Instance.Debugf("Failed to store the measurement in the database: %w", err)
+			log.Instance.Debugf("Failed to store the measurement in the database: %s", err)
 		}
 
 		hostIds := wss.dashboardHostPool.GetAllHostIds()
