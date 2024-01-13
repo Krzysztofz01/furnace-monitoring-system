@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	databaseName   string        = "db/furnace-monitoring-system.db"
+	databaseName   string        = "furnace-monitoring-system.db"
 	contextTimeout time.Duration = 5 * time.Second
 )
 

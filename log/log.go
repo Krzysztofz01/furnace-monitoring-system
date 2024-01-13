@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const logFilePath string = "log/furnace-monitoring-system.log"
+const logFilePath string = "furnace-monitoring-system-server.log"
 
 var logFile *os.File
 
